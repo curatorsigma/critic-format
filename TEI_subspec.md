@@ -212,12 +212,10 @@ For each subsequent version, do the following:
 Critic will calculate the state for each Version.
 
 ## Nonstandard Glyphs and Diacritica
-TODO: gaiji anschauen
-
-Für welche Glyphen taucht das Problem auf?
-- Byblonischer Niqud
-- Palestinensischer Niqud
-- Samaritischer Niqud
-
-- Option A: PUA
+### Non-Tiberian Niqud
+For vocalization that is not tiberian, you MUST transcribe the vowels with the equivalent tiberian niqud.
+An enclosing element (see above, [Source Language](#Defining-the-source-language)) must carry the language tag with the following tags:
+- `hbo-Hebr-x-babli-e`
+- `hbo-Hebr-x-babli-k`
+- `hbo-Hebr-x-palest`
 

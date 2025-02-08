@@ -5,7 +5,7 @@
          xmlns="http://relaxng.org/ns/structure/1.0"
          datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
          ns="http://www.tei-c.org/ns/1.0"><!--
-Schema generated from ODD source 2025-02-01T08:39:38Z. . 
+Schema generated from ODD source 2025-02-07T08:56:38Z. . 
 TEI Edition: P5 Version 4.9.0. Last updated on 24th January 2025, revision f73186978 
 TEI Edition Location: https://www.tei-c.org/Vault/P5/4.9.0/ 
   
@@ -2692,10 +2692,19 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
       <notAllowed/>
    </define>
    <define name="tei_model.teiHeaderPart">
-      <notAllowed/>
+      <choice>
+         <ref name="tei_profileDesc"/>
+      </choice>
    </define>
    <define name="tei_model.sourceDescPart">
       <notAllowed/>
+   </define>
+   <define name="tei_model.profileDescPart">
+      <choice>
+         <ref name="tei_handNotes"/>
+         <ref name="tei_listTranspose"/>
+         <ref name="tei_langUsage"/>
+      </choice>
    </define>
    <define name="tei_model.resource">
       <choice>
@@ -4704,6 +4713,14 @@ Sample values include: 1] header; 2] footer; 3] pageNum (page number); 4] lineNu
          <empty/>
       </element>
    </define>
+   <define name="tei_handNotes">
+      <element name="handNotes">
+         <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">contains one or more <code xmlns="http://www.w3.org/1999/xhtml"
+                  xmlns:rng="http://relaxng.org/ns/structure/1.0">&lt;handNote&gt;</code> elements documenting the different hands identified within the source texts. [12.3.2.1. Document Hands]</a:documentation>
+         <ref name="tei_att.global.attributes"/>
+         <empty/>
+      </element>
+   </define>
    <define name="tei_handShift">
       <element name="handShift">
          <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(handwriting shift) marks the beginning of a sequence of text written in a new hand, or the beginning of a scribal stint. [12.3.2.1. Document Hands]</a:documentation>
@@ -5993,6 +6010,64 @@ Sample values include: 1] Unicode (Unicode); 2] Bridwell (E. Nelson Bridwell); 3
          </choice>
          <ref name="tei_att.global.attributes"/>
          <ref name="tei_att.declarable.attributes"/>
+         <empty/>
+      </element>
+   </define>
+   <define name="tei_profileDesc">
+      <element name="profileDesc">
+         <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(text-profile description) provides a detailed description of non-bibliographic aspects of a text, specifically the languages and sublanguages used, the situation in which it was produced, the participants and their setting. [2.4. The Profile Description 2.1.1. The TEI Header and Its Components]</a:documentation>
+         <zeroOrMore>
+            <ref name="tei_model.profileDescPart"/>
+         </zeroOrMore>
+         <ref name="tei_att.global.attributes"/>
+         <empty/>
+      </element>
+   </define>
+   <define name="tei_langUsage">
+      <element name="langUsage">
+         <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(language usage) describes the languages, sublanguages, registers, dialects, etc. represented within a text. [2.4.2. Language Usage 2.4. The Profile Description 16.3.2. Declarable Elements]</a:documentation>
+         <choice>
+        
+            <oneOrMore>
+               <ref name="tei_model.pLike"/>
+            </oneOrMore>
+         
+          
+            <oneOrMore>
+               <ref name="tei_language"/>
+            </oneOrMore>
+        
+         </choice>
+         <ref name="tei_att.global.attributes"/>
+         <ref name="tei_att.declarable.attributes"/>
+         <empty/>
+      </element>
+   </define>
+   <define name="tei_language">
+      <element name="language">
+         <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(language) characterizes a single language or sublanguage used within a text. [2.4.2. Language Usage]</a:documentation>
+         <ref name="tei_macro.phraseSeq.limited"/>
+         <ref name="tei_att.global.attributes"/>
+         <ref name="tei_att.scope.attributes"/>
+         <attribute name="ident">
+            <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(identifier) Supplies a language code constructed as defined in <a xmlns="http://www.w3.org/1999/xhtml"
+                  xmlns:rng="http://relaxng.org/ns/structure/1.0"
+                  href="https://tools.ietf.org/html/bcp47">BCP 47</a> which is used to identify the language documented by this element, and which may be referenced by the global <code xmlns="http://www.w3.org/1999/xhtml"
+                     xmlns:rng="http://relaxng.org/ns/structure/1.0">@xml:lang</code> attribute.</a:documentation>
+            <choice>
+               <data type="language"/>
+               <choice>
+                  <value/>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"/>
+               </choice>
+            </choice>
+         </attribute>
+         <optional>
+            <attribute name="usage">
+               <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">specifies the approximate percentage of the text which uses this language.</a:documentation>
+               <data type="nonNegativeInteger"/>
+            </attribute>
+         </optional>
          <empty/>
       </element>
    </define>
