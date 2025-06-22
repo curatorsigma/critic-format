@@ -174,7 +174,7 @@ This occurs when the existance of characters, lines, columns etc is obvious (for
 The missing characters MUST be enclosed in `<gap>`.
 - `@reason` MUST be given
     - good examples of reasons include: `lost`, `smeared`, `burned`, `water`
-- `@unit` MUST be given and SHOULD be one of `character`, `line`, `column` unless another unit is required.
+- `@unit` MUST be given and MUST be one of `character`, `line`, `column`
 - `@n` MUST be given
 - `@cert` MAY be given and qualifies the certainty in assertaining the amount of missing units
 
