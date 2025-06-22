@@ -148,6 +148,10 @@ pub enum InlineBlock {
     Anchor(Anchor),
 }
 
+/// Anything that can be in a p in normal flowing text.
+///
+/// This is a bit of a weird support-type, since it is necessary for writing out this schema but
+/// has no actual semantic.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TextDamageOrChoice {
     #[serde(rename = "$text")]
@@ -492,5 +496,58 @@ mod test {
                 anchor_type: "Masoretic".to_string(),
             }
         );
+    }
+
+    /// TextDamageOrChoice - text
+    #[test]
+    fn deser_text_damage_or_choice_text() {
+        let xml = r#"raw stuff"#;
+        let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            TextDamageOrChoice::Text("raw stuff".to_string())
+        );
+    }
+
+    /// TextDamageOrChoice - damage
+    #[test]
+    fn deser_text_damage_or_choice_damage() {
+        let xml = r#"<damage cert="low" agent="water">damaged</damage>"#;
+        let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            TextDamageOrChoice::Damage(Damage {
+                xml_lang: None,
+                cert: "low".to_string(),
+                agent: "water".to_string(),
+                text: "damaged".to_string()
+            })
+        );
+    }
+
+    /// TextDamageOrChoice - Choice
+    #[test]
+    fn deser_text_damage_or_choice_choice() {
+        let xml = r#"<choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
+        let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            TextDamageOrChoice::Choice(Choice {
+                xml_lang: None,
+                abbr: "JHWH".to_string(),
+                expan: "Jahwe".to_string()
+            })
+        );
+    }
+
+    /// TextDamageOrChoice - Choice
+    #[test]
+    fn deser_text_damage_or_choice_other() {
+        let xml = r#"<app/>"#;
+        let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_err());
     }
 }
