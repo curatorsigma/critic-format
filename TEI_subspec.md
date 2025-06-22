@@ -84,9 +84,8 @@ OR
 - reconstructable with certainty (comparison with other MSS or standard versions)
 then the beginnings of verses SHOULD be indicated by `<anchor>` tags.
 The `<anchor>` tag...
-- MUST include `type="Verse"`
-- MUST include `subtype="{the-versification-scheme}"`
-- MUST have `xml:id="A_V_{the-versification-scheme-shorthand}_{the-verse-ID}"`
+- MUST include `type="{the-versification-scheme}"`.
+- MUST have `xml:id="A_V_{the-versification-scheme-shorthand}_{the-verse-ID}"`.
 
 #### Considerations when adding Verse anchors
 Verse anchors are used to align texts in the collation phase. This means that wrong verse anchors will lead to wrong collation and all sorts of Problems.

@@ -138,7 +138,6 @@ pub struct Line {
     pub blocks: Vec<InlineBlock>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub enum InlineBlock {
     #[serde(rename = "p")]
@@ -149,7 +148,7 @@ pub enum InlineBlock {
     Anchor(Anchor),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TextDamageOrChoice {
     #[serde(rename = "$text")]
     Text(String),
@@ -159,19 +158,15 @@ pub enum TextDamageOrChoice {
     Choice(Choice),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Anchor {
-    #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
     #[serde(rename = "@id")]
     pub xml_id: String,
     #[serde(rename = "@type")]
     pub anchor_type: String,
-    #[serde(rename = "@subtype")]
-    pub subtype: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Damage {
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
@@ -183,7 +178,7 @@ pub struct Damage {
     pub text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Choice {
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
@@ -232,7 +227,6 @@ pub enum ExtentUnit {
     Column,
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -242,7 +236,14 @@ mod test {
         let xml = r#"<choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Choice { xml_lang: None, abbr: "JHWH".to_owned(), expan: "Jahwe".to_owned()});
+        assert_eq!(
+            result.unwrap(),
+            Choice {
+                xml_lang: None,
+                abbr: "JHWH".to_string(),
+                expan: "Jahwe".to_string()
+            }
+        );
     }
 
     /// adding superfluous elements is irrelevant - this is not always tested
@@ -251,7 +252,14 @@ mod test {
         let xml = r#"<choice>text<abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Choice { xml_lang: None, abbr: "JHWH".to_owned(), expan: "Jahwe".to_owned()});
+        assert_eq!(
+            result.unwrap(),
+            Choice {
+                xml_lang: None,
+                abbr: "JHWH".to_string(),
+                expan: "Jahwe".to_string()
+            }
+        );
     }
 
     /// changing order is also irrelevant - not always tested
@@ -260,7 +268,14 @@ mod test {
         let xml = r#"<choice><expan>Jahwe</expan><abbr>JHWH</abbr></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Choice { xml_lang: None, abbr: "JHWH".to_owned(), expan: "Jahwe".to_owned()});
+        assert_eq!(
+            result.unwrap(),
+            Choice {
+                xml_lang: None,
+                abbr: "JHWH".to_string(),
+                expan: "Jahwe".to_string()
+            }
+        );
     }
 
     /// Missing elements lead to errors - not always tested
@@ -277,7 +292,15 @@ mod test {
         let xml = r#"<gap reason="lost" n="2" unit="column" cert="high"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Gap { reason: "lost".to_owned(), n: 2, unit: ExtentUnit::Column, cert: Some("high".to_owned()), });
+        assert_eq!(
+            result.unwrap(),
+            Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Column,
+                cert: Some("high".to_string()),
+            }
+        );
     }
 
     /// cert is optional
@@ -286,7 +309,15 @@ mod test {
         let xml = r#"<gap reason="lost" n="2" unit="line"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Gap { reason: "lost".to_owned(), n: 2, unit: ExtentUnit::Line, cert: None, });
+        assert_eq!(
+            result.unwrap(),
+            Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Line,
+                cert: None,
+            }
+        );
     }
 
     /// only line character and column are supported
@@ -295,23 +326,46 @@ mod test {
         let xml = r#"<gap reason="lost" n="2" unit="character"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Gap { reason: "lost".to_owned(), n: 2, unit: ExtentUnit::Character, cert: None, });
+        assert_eq!(
+            result.unwrap(),
+            Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Character,
+                cert: None,
+            }
+        );
 
         let xml = r#"<gap reason="lost" n="2" unit="line"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Gap { reason: "lost".to_owned(), n: 2, unit: ExtentUnit::Line, cert: None, });
+        assert_eq!(
+            result.unwrap(),
+            Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Line,
+                cert: None,
+            }
+        );
 
         let xml = r#"<gap reason="lost" n="2" unit="column"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Gap { reason: "lost".to_owned(), n: 2, unit: ExtentUnit::Column, cert: None, });
+        assert_eq!(
+            result.unwrap(),
+            Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Column,
+                cert: None,
+            }
+        );
 
         let xml = r#"<gap reason="lost" n="2" unit="does_not_exist"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
     }
-
 
     /// rdg - base case
     #[test]
@@ -319,7 +373,15 @@ mod test {
         let xml = r#"<rdg hand="handname" varSeq="1">The content.</rdg>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Rdg { xml_lang: None, hand: Some("handname".to_owned()), var_seq: 1, text: "The content.".to_owned(), });
+        assert_eq!(
+            result.unwrap(),
+            Rdg {
+                xml_lang: None,
+                hand: Some("handname".to_string()),
+                var_seq: 1,
+                text: "The content.".to_string(),
+            }
+        );
     }
 
     /// rdg - hand is optional
@@ -328,7 +390,15 @@ mod test {
         let xml = r#"<rdg varSeq="1">The content.</rdg>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Rdg { xml_lang: None, hand: None, var_seq: 1, text: "The content.".to_owned(), });
+        assert_eq!(
+            result.unwrap(),
+            Rdg {
+                xml_lang: None,
+                hand: None,
+                var_seq: 1,
+                text: "The content.".to_string(),
+            }
+        );
     }
 
     /// rdg - varSeq is not optional
@@ -353,7 +423,74 @@ mod test {
         let xml = r#"<app><rdg varSeq="1">Content1</rdg><rdg varSeq="2">Content2</rdg></app>"#;
         let result: Result<App, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), App { xml_lang: None, rdg: vec![Rdg { xml_lang: None, hand: None, var_seq: 1, text: "Content1".to_owned() }, Rdg { xml_lang: None, hand: None, var_seq: 2, text: "Content2".to_owned() }] });
+        assert_eq!(
+            result.unwrap(),
+            App {
+                xml_lang: None,
+                rdg: vec![
+                    Rdg {
+                        xml_lang: None,
+                        hand: None,
+                        var_seq: 1,
+                        text: "Content1".to_string()
+                    },
+                    Rdg {
+                        xml_lang: None,
+                        hand: None,
+                        var_seq: 2,
+                        text: "Content2".to_string()
+                    }
+                ]
+            }
+        );
+    }
+
+    /// damage - base case
+    #[test]
+    fn deser_damage() {
+        let xml = r#"<damage cert="low" agent="water">damaged</damage>"#;
+        let result: Result<Damage, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Damage {
+                xml_lang: None,
+                cert: "low".to_string(),
+                agent: "water".to_string(),
+                text: "damaged".to_string()
+            }
+        );
+    }
+
+    /// damage - with language
+    #[test]
+    fn deser_damage_with_lang() {
+        let xml = r#"<damage xml:lang="en" cert="low" agent="water">damaged</damage>"#;
+        let result: Result<Damage, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Damage {
+                xml_lang: Some("en".to_string()),
+                cert: "low".to_string(),
+                agent: "water".to_string(),
+                text: "damaged".to_string()
+            }
+        );
+    }
+
+    /// anchor - base case
+    #[test]
+    fn deser_anchor() {
+        let xml = r#"<anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/>"#;
+        let result: Result<Anchor, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Anchor {
+                xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                anchor_type: "Masoretic".to_string(),
+            }
+        );
     }
 }
-
