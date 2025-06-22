@@ -27,17 +27,18 @@ This TEI Header MUST be present in every individual TEI file.
 The `title` inside `titleStmt` MUST be given as `{manuscript name} folio {folio number} {recto/verse}.`
 
 ### publicationStmt
-The `publicationStmt` MUST be given as `This digital reproduction is published as part of TanakhCC and licensed as CC0 1.0.`.
+The `publicationStmt` MUST be given as `<p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>`.
 In particular, all data that is part of TanakhCC MUST always explicitly be CC0.
 
 ### sourceDesc
 The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined in the next subsection.
 
-#### Manuscript Description
+#### Manuscript Description {#msDesc}
 - The Body of each file MUST begin with a `msDesc`.
-- The `msDesc` MUST have `msIdentifier`, defining the physical manuscript reproduced.
-    - `institution` and `msName` SHOULD be given if relevant
-    - `collection` MAY be given if relevant
+- The `msDesc` MUST have
+    - `msIdentifier`, defining the physical manuscript reproduced:
+        - `institution` and `msName` SHOULD be given if relevant
+        - `collection` MAY be given if relevant
 - `physDesc` MAY be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
 
 # Representing the Text itself
@@ -52,7 +53,7 @@ Reconstructions MUST NOT be done to correct scribal errors, including but not li
 - skipped words, even when alliterations or other markers make a genuine mistake probable
 All of the above phenomena MUST be represented without emandation. See the later sections for the correct markup to use.
 
-## Defining the source Language
+## Defining the source Language {#Defining-the-source-language}
 - The source language MUST be defined for each part of the transcription.
 - The source language MUST be defined in the `xml:lang` attribute.
 - The source language SHOULD be defined on the highest level possible, up to the `body` tag.
@@ -66,6 +67,7 @@ All of the above phenomena MUST be represented without emandation. See the later
 Text is structured as two levels of nested divs:
 - column (represented by a `div` with `type="column"`)
     - line (represented by a `div` with `type="line"`)
+    - Every block of normal text MUST be enclosed in `<p>` unless it is special in some way (see below for special cases).
 Notice that one page is one OS file, so no folio/page-breaks will ever occur inside one file.
 For both column and line, the `n` attribute with the correct number SHOULD be given. If it is not given, the number is supplied sequentially, starting from 1
 When lines or columns are missing, `n` MUST be applied.
@@ -96,10 +98,7 @@ verse anchors be supplied in as many versions as possible. This aids collation a
 
 #### Available Versification schemes
 In ALL cases, the abbreviation for books from [OSIS](https://wiki.crosswire.org/OSIS_Book_Abbreviations) MUST be used.
-While this may use book abbreviations foreign some(or most) schemes, this simplifies crossreferencing drasticly.
-
-Each manuscript has a natural versification scheme (e.g. `Masoretic` for the Leningradensis).
-It MUST be noted (TODO: where??, is this a SHOULD??)
+While this may use book abbreviations foreign to some(or most) schemes, this simplifies crossreferencing drasticly.
 
 Verse IDs in all schemes are formed as:
 `{book_abbr}-{chapter}-{verse}`
@@ -113,11 +112,17 @@ This scheme SHOULD be used, when all of the following schemes agree:
 - Masoretic
 - Septuagint
 - ESV
-- The natural Versification scheme of the present manuscript
+- Present
 When the above schemes do not agree, the `Common` scheme MUST NOT be used.
 If other schemes disagree on the verse boundary in question, their anchors MAY be given, but it is NOT RECOMMENDED to do so.
 Instead, disagreement for uncommon versification schemes is best noted in a manuscript for which the uncommon scheme is the natural versification scheme.
 By way of example: when Aleppo disagrees with BHS, a septuagintal manuscript SHOULD NOT add an anchor for the Aleppo versification.
+
+##### Present
+Shorthand: `P`
+Long Form: `Present`
+
+The verse numbering (explicit or implicit, by counting from the chapter starts) used in the present manuscript.
 
 ##### Masoretic (BHS)
 Shorthand: `MT`
@@ -146,70 +151,45 @@ The versification used in the ESV, 2016 Edition. This Versification scheme is in
 
 ## Abbreviations
 When a sequence abbreviates another sequence:
-- The entire span of text MUST be enclosed in `<expan>`
-- Every character that is physically present and part of the expansion MUST appear in `<abbr>`
-- Every character that is physically present but not part of the expansion MUST appear in `<am>`
-- Every character that is not physically present but part of the expansion MUST appear in `<ex>`
-Thus, the surface form (physically present) is reconstructed as:
-- the concatenation of all `<abbr>` and `<am>` elements within the `<expan>`, in order
-while the expanded form is reconstructed as:
-- the concatenation of all `<abbr>` and `<ex>` elements within the `<expan>`, in order
+- The entire part of text MUST be enclosed in `<p><choice>`
+- The surface form MUST be given in `<abbr>`
+- The (conjectured) expanded form MUST be given in `<expan>`
 
 ## Ligatures
 TODO: just use gaiji to represent them as glyphs. Use abbreviation as before for NS and the like
 
-## Damaged Characters
+## Damaged Characters {#uncertain}
 This occurs where characters are present, but physically damaged.
-- For characters whose existance is obvious but where no physical trace is left, see [Missing](#missing-elements) instead.
-- When a reconstruction is to uncertain, use [Illegible Characters](#illegible-characters) instead.
+- When a reconstruction is too difficult to make with any certainty, use [Lacunous Elements](#lacuna) instead.
+- This section does NOT apply when characters are impossible to decipher from their remaining artefacts alone. Reconstructions based on grammar, common words or phrases alone MUST NOT be made. Use [Lacunous Elements](#lacuna) instead.
 
-The damaged characters MUST be enclosed in `<damaged>`.
+The damaged characters MUST be enclosed in `<p><damaged>`.
 - `@agent` SHOULD be given
+    - good examples of reasons include: `smeared`, `burned`, `water`
 - `@cert` SHOULD be given
 
-## Illegible Characters
-This occurs when traces of characters are present, but a reconstruction is impossible or considered to uncertain.
-
-The illegible characters MUST be enclosed in `<gap>`.
-- `@reason` MUST be `illegible`
-- `@unit` MUST be `character`
-- When the amount of characters or space missing is known:
-    - `@n` MUST be given
-- Otherwise
-    - `@extent` MUST be given and set to `unknown`
-- `@cert` MAY be given and qualifies the certainty in assertaining the amount of missing characters
-
-## Missing Elements
-This occurs when the existance of characters, lines, columns etc is obvious (for grammatical-, layout- or other reasons), but no physical trace of those units is left.
+## Lacunous Elements {#lacuna}
+This occurs when the existance of characters, lines, columns etc is obvious (for grammatical-, layout- or other reasons), but they are illegible. Whether physical traces of these characters such as illegible smears of ink are present or not is irrelevant. If the characters are hard but possible to read, use [Damaged Characters](#uncertain) instead.
 
 The missing characters MUST be enclosed in `<gap>`.
-- `@reason` MUST be `lost`
+- `@reason` MUST be given
+    - good examples of reasons include: `lost`, `smeared`, `burned`, `water`
 - `@unit` MUST be given and SHOULD be one of `character`, `line`, `column` unless another unit is required.
-- When the number of missing units is known:
-    - `@n` MUST be given
-- Otherwise
-    - `@extent` MUST be given and set to `unknown`
+- `@n` MUST be given
 - `@cert` MAY be given and qualifies the certainty in assertaining the amount of missing units
 
 ## Ancient Corrections
 When multiple ancient surface forms are present in a place, these rules apply.
-
 Versions are here considered in (conjectured) temporal order.
 - e.g. When a Word was written by Scribe1, struck through by Scribe2 and then another word written atop it by Scribe3, there are three distinct versions.
 
-The entire passage in question MUST be enclosed in `<p>` (this facilitates parsing).
+All different ancient versions (the first, and all different corrections) MUST be given separately.
+The entire passage in question MUST be wrapped in `<app>`.
+Every individual version MUST be given in `<rdg>`. `@hand` SHOULD be given for all `<rdg>`s. `@varSeq` MUST be given for all `<rdg>`s and mark them in (conjectured) temporal order.
+The text in `<rdg>` MUST be normal text without additional markup elements.
 
-The first version MUST be given without annotations.
-- To note the Hand responsible for the first version, `@hand` MAY be used on the enclosing `<p>`.
-
-For each subsequent version, do the following:
-- Record the additions relative to the preceding version with `<add>` elements
-- Record the deletions relative to the preceding version with `<del>` elements
-- Give all of these additions and deletions an `@xml:id` attribute
-- Add a `<substJoin>`, with `@target` a space-separated list of the `@xml:id`s given out earlier. (remember the `#`-prefix)
-    - You MAY note the hand responsible for this version with `@hand` on the `<substJoin>`.
-
-Critic will calculate the state for each Version.
+If part of the text in any of the versions is lacunous, exclude it from its reading. Instead, add a lacuna after the entire correction.
+If part of the text in any of the versions is damaged but legible, simply add it without markup.
 
 ## Nonstandard Glyphs and Diacritica
 ### Non-Tiberian Niqud
