@@ -138,14 +138,26 @@ pub struct Line {
     pub blocks: Vec<InlineBlock>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// A block of text or marked up text.
+///
+/// This maps to the Blocks (with actual content) that are editable in
+/// [critic](https://github.com/curatorsigma/critic).
+/// These are atomic units of text, that NEVER overlap linebreaks.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum InlineBlock {
     #[serde(rename = "p")]
-    P(TextDamageOrChoice),
+    P(TDOCWrapper),
     #[serde(rename = "gap")]
     Gap(Gap),
     #[serde(rename = "anchor")]
     Anchor(Anchor),
+}
+
+/// Intermediate Wrapper struct required for XML (de-)serialization.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct TDOCWrapper {
+    #[serde(rename = "$value")]
+    value: TextDamageOrChoice,
 }
 
 /// Anything that can be in a p in normal flowing text.
@@ -549,5 +561,90 @@ mod test {
         let xml = r#"<app/>"#;
         let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
+    }
+
+    /// InlineBlock - P - text
+    #[test]
+    fn inline_block_p() {
+        let xml = r#"<p>text</p>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        dbg!(&result);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::P(TDOCWrapper {
+                value: TextDamageOrChoice::Text("text".to_string())
+            })
+        );
+    }
+
+    /// InlineBlock - p - damaged
+    #[test]
+    fn inline_block_p_damaged() {
+        let xml = r#"<p><damage cert="low" agent="water">damaged</damage></p>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        dbg!(&result);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::P(TDOCWrapper {
+                value: TextDamageOrChoice::Damage(Damage {
+                    xml_lang: None,
+                    cert: "low".to_string(),
+                    agent: "water".to_string(),
+                    text: "damaged".to_string()
+                })
+            })
+        );
+    }
+
+    /// InlineBlock - p - choice
+    #[test]
+    fn inline_block_p_choice() {
+        let xml = r#"<p><choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice></p>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::P(TDOCWrapper {
+                value: TextDamageOrChoice::Choice(Choice {
+                    xml_lang: None,
+                    abbr: "JHWH".to_string(),
+                    expan: "Jahwe".to_string()
+                })
+            })
+        );
+    }
+
+    /// InlineBlock - Gap
+    #[test]
+    fn inline_block_gap() {
+        let xml = r#"<gap reason="lost" n="2" unit="column"/>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::Gap(Gap {
+                reason: "lost".to_string(),
+                n: 2,
+                unit: ExtentUnit::Column,
+                cert: None,
+            })
+        );
+    }
+
+    /// InlineBlock - Anchor
+    #[test]
+    fn inline_block_anchor() {
+        let xml = r#"<anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::Anchor(Anchor {
+                xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                anchor_type: "Masoretic".to_string(),
+            })
+        );
     }
 }
