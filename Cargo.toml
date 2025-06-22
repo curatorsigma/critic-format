@@ -2,6 +2,12 @@
 name = "critic-format"
 version = "0.1.0"
 edition = "2024"
+license = "MIT-0"
+description = "Defines the TEI subformat used by critic and allows (de-)serialization of this format."
+repository = "https://github.com/curatorsigma/critic-format"
+keywords = ["tei", "text-encoding"]
+categories = ["encoding"]
+authors = ["Jonathan Schleucher"]
 
 [dependencies]
 quick-xml = { version = "0.37.2", features = ["serialize"] }
