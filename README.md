@@ -1,3 +1,5 @@
+![cargo test](https://github.com/curatorsigma/critic-format/actions/workflows/rust.yml/badge.svg)
+
 # critic-format
 
 This repository formally defines the spec for critics XML-files for transcriptions.
