@@ -166,6 +166,8 @@ pub enum InlineBlock {
     Gap(Gap),
     #[serde(rename = "anchor")]
     Anchor(Anchor),
+    #[serde(rename = "app")]
+    App(App),
 }
 
 /// Intermediate Wrapper struct required for XML (de-)serialization.
@@ -683,6 +685,34 @@ mod test {
             InlineBlock::Anchor(Anchor {
                 xml_id: "A_V_MT_1Kg-3-4".to_string(),
                 anchor_type: "Masoretic".to_string(),
+            })
+        );
+    }
+
+    /// InlineBlock - App
+    #[test]
+    fn inline_block_app() {
+        let xml = r#"<app><rdg varSeq="1">Content1</rdg><rdg varSeq="2">Content2</rdg></app>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::App(App {
+                xml_lang: None,
+                rdg: vec![
+                    Rdg {
+                        xml_lang: None,
+                        hand: None,
+                        var_seq: 1,
+                        text: "Content1".to_string()
+                    },
+                    Rdg {
+                        xml_lang: None,
+                        hand: None,
+                        var_seq: 2,
+                        text: "Content2".to_string()
+                    },
+                ]
             })
         );
     }
