@@ -1,6 +1,6 @@
 //! Rust types that map more directly to the semantics of our data.
 //!
-//! We (de-)serialize with the types in [`schema`] and then convert them to these nicer datatypes
+//! We (de-)serialize with the types in [`schema`](crate::schema) and then convert them to these nicer datatypes
 //! that do not have to map so closely to the xml format.
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -114,7 +114,7 @@ pub struct Version {
     pub lang: Option<String>,
     /// The scribal hand responsible for this reading
     ///
-    /// The difrent hands should be explained in the [`HandDesc`] in the header.
+    /// The difrent hands should be explained in the [`HandDesc`](crate::schema::HandDesc) in the header.
     pub hand: Option<String>,
     /// The actual text of this reading
     pub text: String,

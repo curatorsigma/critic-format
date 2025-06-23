@@ -2,13 +2,32 @@
 
 use crate::{normalized, schema};
 
+/// This publication statement MUST be present in every xml file and this is enforced.
+pub const PUBLICATION_STATEMENT: &str = "This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.";
+
+/// An error while Normalizing or Denormalizing a document.
 #[derive(Debug, PartialEq)]
 pub enum NormalizationError {
+    /// This column number would overlap and be used twice
     ColumnNrOverlap(i32),
+    /// A div is required to specify a column but its `@type` is not `column`
+    ///
+    /// Argument is the `@type` actually present
     ColumnDivIncorrectType(String),
+    /// This line number would overlap and be used twice
+    ///
+    /// Arguments are
+    /// - the line number
+    /// - the column this line is in
     LineNrOverlap(i32, i32),
+    /// A div is required to specify a line but its `@type` is not `line`
+    ///
+    /// Argument is the `@type` actually present
     LineDivIncorrectType(String),
+    /// The publication statement does not match the one given in [`PUBLICATION_STATEMENT`]
     PublicationStmtIncorrect,
+    /// The normalized version hat more then 2^32 - 1 versions for a single correction is thus not
+    /// representable
     TooManyVersions,
 }
 impl core::fmt::Display for NormalizationError {
@@ -38,7 +57,7 @@ impl core::fmt::Display for NormalizationError {
             Self::PublicationStmtIncorrect => {
                 write!(
                     f,
-                    "The publicationStmt was not exactly \"This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.\"."
+                    "The publicationStmt was not exactly \"{PUBLICATION_STATEMENT}\"."
                 )
             }
             Self::TooManyVersions => {
@@ -67,9 +86,7 @@ impl TryFrom<schema::TeiHeader> for normalized::Meta {
     type Error = NormalizationError;
 
     fn try_from(value: schema::TeiHeader) -> Result<Self, Self::Error> {
-        if value.file_desc.publication_stmt.p
-            != *"This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0."
-        {
+        if value.file_desc.publication_stmt.p != *PUBLICATION_STATEMENT {
             return Err(NormalizationError::PublicationStmtIncorrect);
         }
         Ok(Self {
@@ -263,22 +280,32 @@ impl TryFrom<normalized::Manuscript> for schema::Tei {
 
 impl From<normalized::Meta> for schema::TeiHeader {
     fn from(value: normalized::Meta) -> Self {
-        Self { file_desc: schema::FileDesc {
-            title_stmt: schema::TitleStmt { title: value.title },
-            publication_stmt: schema::PublicationStmt { p: "This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.".to_string(), },
-            source_desc: schema::SourceDesc { ms_desc: schema::MsDesc {
-                ms_identifier: schema::MsIdentifier {
-                    institution: value.institution,
-                    collection: value.collection,
-                    ms_name: value.name,
-                    page_nr: value.page_nr,
+        Self {
+            file_desc: schema::FileDesc {
+                title_stmt: schema::TitleStmt { title: value.title },
+                publication_stmt: schema::PublicationStmt {
+                    p: PUBLICATION_STATEMENT.to_string(),
                 },
-                phys_desc: schema::PhysDesc {
-                    hand_desc: schema::HandDesc{ summary: value.hand_desc },
-                    script_desc: schema::ScriptDesc { summary: value.script_desc },
-                }
-            } },
-        } }
+                source_desc: schema::SourceDesc {
+                    ms_desc: schema::MsDesc {
+                        ms_identifier: schema::MsIdentifier {
+                            institution: value.institution,
+                            collection: value.collection,
+                            ms_name: value.name,
+                            page_nr: value.page_nr,
+                        },
+                        phys_desc: schema::PhysDesc {
+                            hand_desc: schema::HandDesc {
+                                summary: value.hand_desc,
+                            },
+                            script_desc: schema::ScriptDesc {
+                                summary: value.script_desc,
+                            },
+                        },
+                    },
+                },
+            },
+        }
     }
 }
 
