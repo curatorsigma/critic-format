@@ -75,10 +75,10 @@ pub enum InlineBlock {
     Abbreviation(Abbreviation),
 }
 impl InlineBlock {
+    #[must_use]
     pub fn language(&self) -> Option<&str> {
         match self {
-            Self::Lacuna(_) => None,
-            Self::Anchor(_) => None,
+            Self::Lacuna(_) | Self::Anchor(_) => None,
             Self::Correction(x) => x.lang.as_deref(),
             Self::Text(x) => x.lang.as_deref(),
             Self::Uncertain(x) => x.lang.as_deref(),

@@ -38,17 +38,14 @@ pub enum Block {
     Abbreviation(Abbreviation),
 }
 impl Block {
+    #[must_use]
     pub fn language(&self) -> Option<&str> {
         match self {
-            Self::Break(_) => None,
-            Self::Lacuna(_) => None,
-            Self::Anchor(_) => None,
-            Self::Text(Paragraph { lang: x, .. }) => Some(x),
-            // this is not quite true, because correction may potentially have different languages
-            // between different versions
-            Self::Correction(Correction { lang: x, .. }) => Some(x),
-            Self::Uncertain(Uncertain { lang: x, .. }) => Some(x),
-            Self::Abbreviation(Abbreviation { lang: x, .. }) => Some(x),
+            Self::Break(_) | Self::Lacuna(_) | Self::Anchor(_) => None,
+            Self::Text(Paragraph { lang: x, .. })
+            | Self::Correction(Correction { lang: x, .. })
+            | Self::Uncertain(Uncertain { lang: x, .. })
+            | Self::Abbreviation(Abbreviation { lang: x, .. }) => Some(x),
         }
     }
 }

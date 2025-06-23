@@ -12,9 +12,9 @@ use crate::streamed;
 /// An error while Normalizing or Denormalizing a document.
 #[derive(Debug, PartialEq)]
 pub enum StreamError {
-    /// While starting work on a new column, the index should be arg_1 but is actually arg_2
+    /// While starting work on a new column, the index should be `arg_1` but is actually `arg_2`
     ColumnIndexInconsistent(i32, i32),
-    /// While starting work on a new line, the index should be arg_1 but is actually arg_2
+    /// While starting work on a new line, the index should be `arg_1` but is actually `arg_2`
     LineIndexInconsistent(i32, i32),
     /// No block in the streamed form has a language associated with it, so we cannot choose the
     /// default language for the text
@@ -154,7 +154,7 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
                 _ => {
                     res.push(streamed::Block::Break(streamed::BreakType::Column));
                 }
-            };
+            }
             col_idx += 1;
         }
 
@@ -214,8 +214,8 @@ impl From<(String, normalized::Correction)> for streamed::Correction {
                 value.0.clone()
             },
             versions: core::iter::repeat(value.0)
-                .zip(value.1.versions.into_iter())
-                .map(std::convert::Into::into)
+                .zip(value.1.versions)
+                .map(core::convert::Into::into)
                 .collect(),
         }
     }
@@ -303,9 +303,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                 streamed::Block::Break(streamed::BreakType::Line) => {
                     let most_common_lang_in_line = language_use_in_line
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     lines.push(normalized::Line {
                         lang: most_common_lang_in_line,
                         n: line_idx,
@@ -319,9 +319,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                     // first end the line
                     let most_common_lang_in_line = language_use_in_line
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     lines.push(normalized::Line {
                         lang: most_common_lang_in_line,
                         n: line_idx,
@@ -333,9 +333,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                     // now end the column and go to the next one
                     let most_common_lang_in_col = language_use_in_col
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     let take_lines = core::mem::take(&mut lines);
                     columns.push(normalized::Column {
                         lang: most_common_lang_in_col,
@@ -358,9 +358,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                     // then end the line
                     let most_common_lang_in_line = language_use_in_line
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     lines.push(normalized::Line {
                         lang: most_common_lang_in_line,
                         n: line_idx,
@@ -382,9 +382,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                     // then end the line
                     let most_common_lang_in_line = language_use_in_line
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     lines.push(normalized::Line {
                         lang: most_common_lang_in_line,
                         n: line_idx,
@@ -396,9 +396,9 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                     // and finally end the column, skip some and and go to the next one
                     let most_common_lang_in_col = language_use_in_col
                         .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .max_by(|a, b| a.1.cmp(b.1))
                         .map(|(k, _v)| k)
-                        .map(|x| x.to_string());
+                        .map(std::string::ToString::to_string);
                     columns.push(normalized::Column {
                         lang: most_common_lang_in_col,
                         n: column_idx,
@@ -462,7 +462,7 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
         // calculate the language most commonly used in this text
         let most_common_lang = language_use
             .iter()
-            .max_by(|a, b| a.1.cmp(&b.1))
+            .max_by(|a, b| a.1.cmp(b.1))
             .map(|(k, _v)| k)
             .ok_or(StreamError::NoBlockWithLanguage)?;
 
@@ -476,23 +476,23 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
         // - the value is the most common language in the leafs below it
         let global_lang = most_common_lang;
 
-        for col in columns.iter_mut() {
+        for col in &mut columns {
             let column_lang = col.lang.clone();
             // unset the columns language if it is equal to the global language
             if col.lang.as_ref().is_some_and(|x| x == global_lang) {
                 col.lang = None;
             }
-            for line in col.lines.iter_mut() {
+            for line in &mut col.lines {
                 let line_lang = line.lang.clone();
                 // unset the line language if it is equal to the column language
                 if line.lang == column_lang {
                     line.lang = None;
                 }
                 // unset the block language if it is the same as line lang
-                for block in line.blocks.iter_mut() {
+                for block in &mut line.blocks {
                     match block {
-                        normalized::InlineBlock::Lacuna(_) => {}
-                        normalized::InlineBlock::Anchor(_) => {}
+                        normalized::InlineBlock::Lacuna(_) | normalized::InlineBlock::Anchor(_) => {
+                        }
                         normalized::InlineBlock::Text(x) => {
                             if x.lang == line_lang {
                                 x.lang = None;
@@ -514,7 +514,7 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                                 x.lang = None;
                             }
                             // corrections also have lang on each of their versions
-                            for version in x.versions.iter_mut() {
+                            for version in &mut x.versions {
                                 if version.lang == cor_lang {
                                     version.lang = None;
                                 }
