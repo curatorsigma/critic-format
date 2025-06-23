@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// <?xml version="1.0" encoding="UTF-8"?>
 /// <?xml-model href="file:TODO-online-schema-location" schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Tei {
     /// MUST be `http://www.tei-c.org/ns/1.0`
     #[serde(rename = "@xmlns")]
@@ -22,7 +22,7 @@ pub struct Tei {
 }
 
 /// TEI Header with metainformation about a folio.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TeiHeader {
     /// TEI fileDesc element - describes this file
     #[serde(rename = "fileDesc")]
@@ -30,7 +30,7 @@ pub struct TeiHeader {
 }
 
 /// TEI fileDesc element - descripbes this file.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct FileDesc {
     /// Title of this manuscript
     #[serde(rename = "titleStmt")]
@@ -44,7 +44,7 @@ pub struct FileDesc {
 }
 
 /// Title of this manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TitleStmt {
     /// Title MUST be
     /// `{manuscript-name} Folio {folio-number} {recto/verso}`
@@ -52,7 +52,7 @@ pub struct TitleStmt {
 }
 
 /// How this transcription is published.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct PublicationStmt {
     /// MUST be
     /// ```xml
@@ -62,7 +62,7 @@ pub struct PublicationStmt {
 }
 
 /// Description of the transcribed manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SourceDesc {
     /// TEI msDesc element
     #[serde(rename = "msDesc")]
@@ -70,7 +70,7 @@ pub struct SourceDesc {
 }
 
 /// TEI msDesc element - Description of the transcribed manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct MsDesc {
     /// Information that can identify this manuscript
     #[serde(rename = "msIdentifier")]
@@ -81,7 +81,7 @@ pub struct MsDesc {
 }
 
 /// Information that can identify this manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct MsIdentifier {
     /// The institution holding this manuscript
     pub institution: Option<String>,
@@ -95,7 +95,7 @@ pub struct MsIdentifier {
 }
 
 /// Description of the physical properties of this manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct PhysDesc {
     /// Description of the scribal hands present in this manuscript
     #[serde(rename = "handDesc")]
@@ -106,7 +106,7 @@ pub struct PhysDesc {
 }
 
 /// Description of the scribal hands present in this manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct HandDesc {
     /// A human readable summary of the hands present in this manuscript
     ///
@@ -116,7 +116,7 @@ pub struct HandDesc {
 }
 
 /// Description of the scripts present in this manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct ScriptDesc {
     /// A human readable summary of the scripts present in this manuscript
     ///
@@ -128,14 +128,14 @@ pub struct ScriptDesc {
 /// The entire transcribed text.
 ///
 /// This struct is just a trivial wrapper around [`<body>`](Body), because the TEI spec requires that.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Text {
     /// the actual body
     pub body: Body,
 }
 
 /// The entire transcribed text body
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Body {
     /// the default language for text in this manuscript
     #[serde(rename = "@lang")]
@@ -146,7 +146,7 @@ pub struct Body {
 }
 
 /// A complete column in the manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Column {
     /// The default language of text in this column
     #[serde(rename = "@lang")]
@@ -164,7 +164,7 @@ pub struct Column {
 }
 
 /// A complete line in the manuscript.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Line {
     /// The default language of text in this line
     #[serde(rename = "@lang")]
@@ -186,7 +186,7 @@ pub struct Line {
 /// This maps to the Blocks (with actual content) that are editable in
 /// [critic](https://github.com/curatorsigma/critic).
 /// These are atomic units of text, that NEVER overlap linebreaks.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum InlineBlock {
     /// Things in a `<p>`
     ///
@@ -206,7 +206,7 @@ pub enum InlineBlock {
 }
 
 /// Intermediate Wrapper struct required for XML (de-)serialization.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TDOCWrapper {
     /// The language set on the `<p>` element
     #[serde(rename = "@lang")]
@@ -220,7 +220,7 @@ pub struct TDOCWrapper {
 ///
 /// This is a bit of a weird support-type, since it is necessary for writing out this schema but
 /// has no actual semantic.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum TextDamageOrChoice {
     /// Raw text - this is text clearly visible in the manuscript
     #[serde(rename = "$text")]
@@ -237,7 +237,7 @@ pub enum TextDamageOrChoice {
 ///
 /// This could either be marked in the manuscript (Sof Passuq, verse number etc.) or supplied from
 /// other manuscripts if it is certain which verse begins at this point.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Anchor {
     /// The ID of this verse.
     ///
@@ -252,7 +252,7 @@ pub struct Anchor {
 /// A damaged part of the text that is still legible, but hard to read.
 ///
 /// If a part of the text is illegible, use [`<gap>`](Gap) instead.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Damage {
     /// The language set on the `<damage>` element
     #[serde(rename = "@lang")]
@@ -271,7 +271,7 @@ pub struct Damage {
 /// An expanded Abbreviation.
 ///
 /// For corrections, use [`<app>`](App) instead.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Choice {
     /// The language set on the `<choice>` element
     #[serde(rename = "@lang")]
@@ -285,7 +285,7 @@ pub struct Choice {
 }
 
 /// An ancient correction.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct App {
     /// The language set on the `<app>` element
     #[serde(rename = "@lang")]
@@ -296,7 +296,7 @@ pub struct App {
 }
 
 /// An individual reading (version) inside a correction.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Rdg {
     /// the language set on the `<rdg>`
     #[serde(rename = "@lang")]
@@ -317,7 +317,7 @@ pub struct Rdg {
 /// A lacuna.
 ///
 /// For damaged but legible text, use [`<damage>`](Damage) instead.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Gap {
     /// The reason this text is lacunous
     #[serde(rename = "@reason")]
@@ -334,7 +334,7 @@ pub struct Gap {
 }
 
 /// The unit used to express extent of a part of Text.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ExtentUnit {
     /// Single character
     #[serde(rename = "character")]

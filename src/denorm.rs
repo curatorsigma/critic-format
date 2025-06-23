@@ -8,6 +8,8 @@ pub enum NormalizationError {
     ColumnDivIncorrectType(String),
     LineNrOverlap(i32, i32),
     LineDivIncorrectType(String),
+    PublicationStmtIncorrect,
+    TooManyVersions,
 }
 impl core::fmt::Display for NormalizationError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -33,6 +35,18 @@ impl core::fmt::Display for NormalizationError {
                     "A div that should represent a line hat incorrect type {x}. Must be \"line\"."
                 )
             }
+            Self::PublicationStmtIncorrect => {
+                write!(
+                    f,
+                    "The publicationStmt was not exactly \"This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.\"."
+                )
+            }
+            Self::TooManyVersions => {
+                write!(
+                    f,
+                    "There were more then 2^32 - 1 versions for one correction. Are you okay?"
+                )
+            }
         }
     }
 }
@@ -43,18 +57,25 @@ impl TryFrom<schema::Tei> for normalized::Manuscript {
 
     fn try_from(value: schema::Tei) -> Result<Self, Self::Error> {
         Ok(Self {
-            meta: value.tei_header.into(),
+            meta: value.tei_header.try_into()?,
             text: value.text.try_into()?,
         })
     }
 }
 
-impl From<schema::TeiHeader> for normalized::Meta {
-    fn from(value: schema::TeiHeader) -> Self {
-        Self {
+impl TryFrom<schema::TeiHeader> for normalized::Meta {
+    type Error = NormalizationError;
+
+    fn try_from(value: schema::TeiHeader) -> Result<Self, Self::Error> {
+        if value.file_desc.publication_stmt.p
+            != *"This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0."
+        {
+            return Err(NormalizationError::PublicationStmtIncorrect);
+        }
+        Ok(Self {
             name: value.file_desc.source_desc.ms_desc.ms_identifier.ms_name,
             page_nr: value.file_desc.source_desc.ms_desc.ms_identifier.page_nr,
-            title_stmt: value.file_desc.title_stmt.title,
+            title: value.file_desc.title_stmt.title,
             institution: value
                 .file_desc
                 .source_desc
@@ -76,7 +97,7 @@ impl From<schema::TeiHeader> for normalized::Meta {
                 .phys_desc
                 .script_desc
                 .summary,
-        }
+        })
     }
 }
 
@@ -226,6 +247,152 @@ impl From<schema::Anchor> for normalized::Anchor {
     }
 }
 
+// denormalizing (from normalized form to schema-form)
+
+impl TryFrom<normalized::Manuscript> for schema::Tei {
+    type Error = NormalizationError;
+
+    fn try_from(value: normalized::Manuscript) -> Result<Self, Self::Error> {
+        Ok(Self {
+            xmlns: "http://www.tei-c.org/ns/1.0".to_string(),
+            tei_header: value.meta.into(),
+            text: value.text.try_into()?,
+        })
+    }
+}
+
+impl From<normalized::Meta> for schema::TeiHeader {
+    fn from(value: normalized::Meta) -> Self {
+        Self { file_desc: schema::FileDesc {
+            title_stmt: schema::TitleStmt { title: value.title },
+            publication_stmt: schema::PublicationStmt { p: "This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.".to_string(), },
+            source_desc: schema::SourceDesc { ms_desc: schema::MsDesc {
+                ms_identifier: schema::MsIdentifier {
+                    institution: value.institution,
+                    collection: value.collection,
+                    ms_name: value.name,
+                    page_nr: value.page_nr,
+                },
+                phys_desc: schema::PhysDesc {
+                    hand_desc: schema::HandDesc{ summary: value.hand_desc },
+                    script_desc: schema::ScriptDesc { summary: value.script_desc },
+                }
+            } },
+        } }
+    }
+}
+
+impl TryFrom<normalized::Text> for schema::Text {
+    type Error = NormalizationError;
+    fn try_from(value: normalized::Text) -> Result<Self, Self::Error> {
+        Ok(Self {
+            body: schema::Body {
+                lang: value.lang,
+                columns: value
+                    .columns
+                    .into_iter()
+                    .map(core::convert::TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?,
+            },
+        })
+    }
+}
+
+impl TryFrom<normalized::Column> for schema::Column {
+    type Error = NormalizationError;
+
+    fn try_from(value: normalized::Column) -> Result<Self, Self::Error> {
+        Ok(Self {
+            lang: value.lang,
+            div_type: "column".to_string(),
+            n: Some(value.n),
+            lines: value
+                .lines
+                .into_iter()
+                .map(core::convert::TryInto::<schema::Line>::try_into)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl TryFrom<normalized::Line> for schema::Line {
+    type Error = NormalizationError;
+
+    fn try_from(value: normalized::Line) -> Result<Self, Self::Error> {
+        Ok(Self {
+            lang: value.lang,
+            div_type: "line".to_string(),
+            n: Some(value.n),
+            blocks: value
+                .blocks
+                .into_iter()
+                .map(core::convert::TryInto::<schema::InlineBlock>::try_into)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl TryFrom<normalized::InlineBlock> for schema::InlineBlock {
+    type Error = NormalizationError;
+
+    fn try_from(value: normalized::InlineBlock) -> Result<Self, Self::Error> {
+        Ok(match value {
+            normalized::InlineBlock::Text(x) => schema::InlineBlock::P(schema::TDOCWrapper {
+                lang: x.lang.clone(),
+                value: schema::TextDamageOrChoice::Text(x.content),
+            }),
+            normalized::InlineBlock::Lacuna(x) => schema::InlineBlock::Gap(x),
+            normalized::InlineBlock::Uncertain(x) => schema::InlineBlock::P(schema::TDOCWrapper {
+                lang: x.lang.clone(),
+                value: schema::TextDamageOrChoice::Damage(x),
+            }),
+            normalized::InlineBlock::Abbreviation(x) => {
+                schema::InlineBlock::P(schema::TDOCWrapper {
+                    lang: x.lang.clone(),
+                    value: schema::TextDamageOrChoice::Choice(x),
+                })
+            }
+            normalized::InlineBlock::Anchor(x) => schema::InlineBlock::Anchor(x.into()),
+            normalized::InlineBlock::Correction(x) => schema::InlineBlock::App(x.try_into()?),
+        })
+    }
+}
+
+impl From<normalized::Anchor> for schema::Anchor {
+    fn from(value: normalized::Anchor) -> Self {
+        Self {
+            xml_id: value.anchor_id,
+            anchor_type: value.anchor_type,
+        }
+    }
+}
+
+impl TryFrom<normalized::Correction> for schema::App {
+    type Error = NormalizationError;
+
+    fn try_from(value: normalized::Correction) -> Result<Self, Self::Error> {
+        Ok(Self {
+            lang: value.lang,
+            rdg: denorm_versions(value.versions)?,
+        })
+    }
+}
+
+fn denorm_versions(
+    versions: Vec<normalized::Version>,
+) -> Result<Vec<schema::Rdg>, NormalizationError> {
+    let mut res = Vec::with_capacity(versions.len());
+    for (i, version) in versions.into_iter().enumerate() {
+        res.push(schema::Rdg {
+            lang: version.lang,
+            hand: version.hand,
+            text: version.text,
+            var_seq: i32::try_from(i).map_err(|_| NormalizationError::TooManyVersions)?,
+        });
+    }
+    Ok(res)
+}
+
 #[cfg(test)]
 mod test {
     #[test]
@@ -240,7 +407,7 @@ mod test {
             meta: crate::normalized::Meta {
                 name: "Der Name voms dem Manuskripts".to_string(),
                 page_nr: "34 verso".to_string(),
-                title_stmt: "Manuskript Name folio 34 verso.".to_string(),
+                title: "Manuskript Name folio 34 verso.".to_string(),
                 institution: Some("University of does-not-exist".to_string()),
                 collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
                 hand_desc: "There are two recognizable Hands: hand1 and hand2.".to_string(),
@@ -360,5 +527,26 @@ mod test {
             },
         };
         assert_eq!(norm_res.unwrap(), expected);
+    }
+
+    /// normalization after denormalization is the identity
+    ///
+    /// Note that the other direction is not correct:
+    /// not every input normalizes, so denorm circ norm cannot be the identity
+    ///
+    /// Technically denormalizing is also fallible, but these errors can be ignored
+    #[test]
+    fn norm_circ_denorm_is_identity() {
+        let xml = include_str!("../examples/01_all_elements.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let normed = norm_res.unwrap();
+
+        // now test that denorming and then norming is the identity
+        let denormed: crate::schema::Tei = normed.clone().try_into().unwrap();
+        let renormed: crate::normalized::Manuscript = denormed.try_into().unwrap();
+        assert_eq!(renormed, normed);
     }
 }

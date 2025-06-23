@@ -3,7 +3,7 @@
 //! We (de-)serialize with the types in [`schema`] and then convert them to these nicer datatypes
 //! that do not have to map so closely to the xml format.
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Manuscript {
     /// The header with any meta-information
     pub meta: Meta,
@@ -12,13 +12,13 @@ pub struct Manuscript {
 }
 
 /// TEI fileDesc element - descripbes this file.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Meta {
     pub name: String,
     /// number of the page (or folio/r-v)
     pub page_nr: String,
     /// Title of this manuscript
-    pub title_stmt: String,
+    pub title: String,
     pub institution: Option<String>,
     pub collection: Option<String>,
     pub hand_desc: String,
@@ -26,7 +26,7 @@ pub struct Meta {
 }
 
 /// The entire transcribed text body
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Text {
     /// the default language for text in this manuscript
     pub lang: Option<String>,
@@ -35,7 +35,7 @@ pub struct Text {
 }
 
 /// A complete column in the manuscript.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Column {
     /// The default language of text in this column
     pub lang: Option<String>,
@@ -46,7 +46,7 @@ pub struct Column {
 }
 
 /// A complete line in the manuscript.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Line {
     /// The default language of text in this line
     pub lang: Option<String>,
@@ -61,7 +61,7 @@ pub struct Line {
 /// This maps to the Blocks (with actual content) that are editable in
 /// [critic](https://github.com/curatorsigma/critic).
 /// These are atomic units of text, that NEVER overlap linebreaks.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum InlineBlock {
     /// A lacuna in the manuscript
     Lacuna(Lacuna),
@@ -74,7 +74,7 @@ pub enum InlineBlock {
     Abbreviation(Abbreviation),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {
     pub lang: Option<String>,
     pub content: String,
@@ -84,7 +84,7 @@ pub struct Paragraph {
 ///
 /// This could either be marked in the manuscript (Sof Passuq, verse number etc.) or supplied from
 /// other manuscripts if it is certain which verse begins at this point.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Anchor {
     /// The ID of this verse.
     ///
@@ -98,7 +98,7 @@ pub type Uncertain = crate::schema::Damage;
 pub type Abbreviation = crate::schema::Choice;
 
 /// An ancient correction.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Correction {
     /// The language set on the `<app>` element
     pub lang: Option<String>,
@@ -108,7 +108,7 @@ pub struct Correction {
 }
 
 /// An individual reading (version) inside a correction.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Version {
     /// the language set on the `<rdg>`
     pub lang: Option<String>,
