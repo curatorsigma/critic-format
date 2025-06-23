@@ -29,6 +29,8 @@ pub enum NormalizationError {
     /// The normalized version hat more then 2^32 - 1 versions for a single correction is thus not
     /// representable
     TooManyVersions,
+    /// The body element of the xml file has not `@xml:lang` set
+    NoDefaultLanguage,
 }
 impl core::fmt::Display for NormalizationError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -65,6 +67,9 @@ impl core::fmt::Display for NormalizationError {
                     f,
                     "There were more then 2^32 - 1 versions for one correction. Are you okay?"
                 )
+            }
+            Self::NoDefaultLanguage => {
+                write!(f, "The xml text body has no \"@xml:lang\" set.")
             }
         }
     }
@@ -123,7 +128,10 @@ impl TryFrom<schema::Text> for normalized::Text {
 
     fn try_from(value: schema::Text) -> Result<Self, Self::Error> {
         Ok(Self {
-            lang: value.body.lang,
+            lang: value
+                .body
+                .lang
+                .ok_or(NormalizationError::NoDefaultLanguage)?,
             columns: try_norm_columns(value.body.columns)?,
         })
     }
@@ -314,7 +322,7 @@ impl TryFrom<normalized::Text> for schema::Text {
     fn try_from(value: normalized::Text) -> Result<Self, Self::Error> {
         Ok(Self {
             body: schema::Body {
-                lang: value.lang,
+                lang: Some(value.lang),
                 columns: value
                     .columns
                     .into_iter()
@@ -441,7 +449,7 @@ mod test {
                 script_desc: "Die Schrift in diesem Manuskript gibt es.".to_string(),
             },
             text: crate::normalized::Text {
-                lang: Some("hbo-Hebr".to_string()),
+                lang: "hbo-Hebr".to_string(),
                 columns: vec![
                     crate::normalized::Column {
                         lang: None,

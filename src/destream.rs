@@ -1,0 +1,567 @@
+//! Converting from [`normalized`](crate::normalized) to [`streamed`](crate::streamed)
+//! representation.
+//!
+//! In particular, insert or extract line and column breaks and create the corresponding hierarchy
+//! of blocks in the destreamed version.
+
+use std::collections::HashMap;
+
+use crate::normalized;
+use crate::streamed;
+
+/// An error while Normalizing or Denormalizing a document.
+#[derive(Debug, PartialEq)]
+pub enum StreamError {
+    /// While starting work on a new column, the index should be arg_1 but is actually arg_2
+    ColumnIndexInconsistent(i32, i32),
+    /// While starting work on a new line, the index should be arg_1 but is actually arg_2
+    LineIndexInconsistent(i32, i32),
+    /// No block in the streamed form has a language associated with it, so we cannot choose the
+    /// default language for the text
+    NoBlockWithLanguage,
+}
+impl core::fmt::Display for StreamError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Self::ColumnIndexInconsistent(expect, actual) => {
+                write!(
+                    f,
+                    "The next column index should be {expect} but is set to {actual}."
+                )
+            }
+            Self::LineIndexInconsistent(expect, actual) => {
+                write!(
+                    f,
+                    "The next line index should be {expect} but is set to {actual}."
+                )
+            }
+            Self::NoBlockWithLanguage => {
+                write!(
+                    f,
+                    "No block in the streamed form has a lanaguage associated with it, so we cannot choose the default language."
+                )
+            }
+        }
+    }
+}
+impl core::error::Error for StreamError {}
+
+impl TryFrom<normalized::Manuscript> for streamed::Manuscript {
+    type Error = StreamError;
+
+    fn try_from(value: normalized::Manuscript) -> Result<Self, Self::Error> {
+        Ok(Self {
+            meta: value.meta,
+            content: value.text.try_into()?,
+        })
+    }
+}
+
+/// This does two main things:
+/// - unroll the hierarchy into a stream, inserting line and page breaks
+/// - Associate the correct language to every Block
+impl TryFrom<normalized::Text> for Vec<streamed::Block> {
+    type Error = StreamError;
+
+    fn try_from(value: normalized::Text) -> Result<Self, Self::Error> {
+        let mut res = Vec::with_capacity(
+            value
+                .columns
+                .iter()
+                .map(|c| c.lines.iter().map(|l| l.blocks.len()).sum::<usize>())
+                .sum(),
+        );
+
+        let mut current_language = value.lang;
+        let mut col_idx = 1;
+
+        'col: for col in value.columns {
+            if col.n != col_idx {
+                return Err(StreamError::ColumnIndexInconsistent(col_idx, col.n));
+            }
+            if let Some(new_lang) = col.lang {
+                current_language = new_lang
+            }
+            let mut line_idx = 1;
+            'line: for line in col.lines {
+                if line.n != line_idx {
+                    return Err(StreamError::LineIndexInconsistent(line_idx, line.n));
+                }
+                if let Some(new_lang) = line.lang {
+                    current_language = new_lang
+                }
+                for block in line.blocks {
+                    if let Some(new_lang) = block.language() {
+                        current_language = new_lang.to_string()
+                    };
+                    let streamed_block = (current_language.clone(), block).try_into()?;
+                    // break off if we start a multi-line or multi-column gap with this block
+                    match streamed_block {
+                        // a lacuna spanning multiple lines.
+                        // we increment the line-nr by the appropriate amount and continue
+                        // streaming from the next line defined in the xml
+                        //
+                        // There are n lines skipped, so the next defined line has index +n (from
+                        // skipped lines) +1 (from this line ending) relative to the current line
+                        // the `<gap>` is on.
+                        //
+                        // (the other lines are NOT to be defined in the xml, since they are taken
+                        // up by the `<gap>`)
+                        streamed::Block::Lacuna(streamed::Lacuna {
+                            unit: normalized::ExtentUnit::Line,
+                            n,
+                            ..
+                        }) => {
+                            line_idx += n + 1;
+                            res.push(streamed_block);
+                            continue 'line;
+                        }
+                        // a lacuna spanning multiple columns.
+                        // we increment the column-nr by the appropriate amount and continue
+                        // streaming from the next column defined in the xml
+                        streamed::Block::Lacuna(streamed::Lacuna {
+                            unit: normalized::ExtentUnit::Column,
+                            n,
+                            ..
+                        }) => {
+                            col_idx += n + 1;
+                            res.push(streamed_block);
+                            continue 'col;
+                        }
+                        _ => {}
+                    }
+                    res.push(streamed_block);
+                }
+                // the line is now ended - insert a line break
+                res.push(streamed::Block::Break(streamed::BreakType::Line));
+                line_idx += 1;
+            }
+            // the column is now ended - insert a column break
+            // if the last block was a linebreak, turn it into a column break instead
+            let last_element = res.last_mut();
+            match last_element {
+                Some(x @ streamed::Block::Break(streamed::BreakType::Line)) => {
+                    *x = streamed::Block::Break(streamed::BreakType::Column);
+                }
+                _ => {
+                    res.push(streamed::Block::Break(streamed::BreakType::Column));
+                }
+            };
+            col_idx += 1;
+        }
+
+        Ok(res)
+    }
+}
+
+impl TryFrom<(String, normalized::InlineBlock)> for streamed::Block {
+    type Error = StreamError;
+
+    fn try_from(value: (String, normalized::InlineBlock)) -> Result<Self, Self::Error> {
+        Ok(match value.1 {
+            normalized::InlineBlock::Text(x) => streamed::Block::Text(streamed::Paragraph {
+                lang: if let Some(p_lang) = x.lang {
+                    p_lang
+                } else {
+                    value.0
+                },
+                content: x.content,
+            }),
+            normalized::InlineBlock::Uncertain(x) => {
+                streamed::Block::Uncertain((value.0, x).into())
+            }
+            normalized::InlineBlock::Lacuna(x) => streamed::Block::Lacuna(x),
+            normalized::InlineBlock::Anchor(x) => streamed::Block::Anchor(x),
+            normalized::InlineBlock::Correction(x) => {
+                streamed::Block::Correction((value.0, x).into())
+            }
+            normalized::InlineBlock::Abbreviation(x) => {
+                streamed::Block::Abbreviation((value.0, x).into())
+            }
+        })
+    }
+}
+
+impl From<(String, normalized::Uncertain)> for streamed::Uncertain {
+    fn from(value: (String, normalized::Uncertain)) -> Self {
+        Self {
+            lang: if let Some(u_lang) = value.1.lang {
+                u_lang
+            } else {
+                value.0
+            },
+            cert: value.1.cert,
+            agent: value.1.agent,
+            text: value.1.text,
+        }
+    }
+}
+
+impl From<(String, normalized::Correction)> for streamed::Correction {
+    fn from(value: (String, normalized::Correction)) -> Self {
+        Self {
+            lang: if let Some(c_lang) = value.1.lang {
+                c_lang
+            } else {
+                value.0.clone()
+            },
+            versions: core::iter::repeat(value.0)
+                .zip(value.1.versions.into_iter())
+                .map(std::convert::Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<(String, normalized::Version)> for streamed::Version {
+    fn from(value: (String, normalized::Version)) -> Self {
+        Self {
+            lang: if let Some(inner_lang) = value.1.lang {
+                inner_lang
+            } else {
+                value.0
+            },
+            hand: value.1.hand,
+            text: value.1.text,
+        }
+    }
+}
+
+impl From<(String, normalized::Abbreviation)> for streamed::Abbreviation {
+    fn from(value: (String, normalized::Abbreviation)) -> Self {
+        Self {
+            lang: if let Some(a_lang) = value.1.lang {
+                a_lang
+            } else {
+                value.0.clone()
+            },
+            surface: value.1.surface,
+            expansion: value.1.expansion,
+        }
+    }
+}
+
+// destream - turn a stream into normalized form
+impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
+    type Error = StreamError;
+
+    fn try_from(value: streamed::Manuscript) -> Result<Self, Self::Error> {
+        Ok(Self {
+            meta: value.meta,
+            text: value.content.try_into()?,
+        })
+    }
+}
+
+impl TryFrom<Vec<streamed::Block>> for normalized::Text {
+    type Error = StreamError;
+
+    fn try_from(value: Vec<streamed::Block>) -> Result<Self, Self::Error> {
+        let mut language_use = HashMap::<String, i32>::new();
+        let mut columns = Vec::<normalized::Column>::new();
+        let mut column_idx = 1;
+        let mut language_use_in_col = HashMap::<String, i32>::new();
+        let mut lines = Vec::<normalized::Line>::new();
+        let mut line_idx = 1;
+        let mut language_use_in_line = HashMap::<String, i32>::new();
+        let mut blocks_in_line = Vec::<normalized::InlineBlock>::new();
+
+        for block in value {
+            // update language use
+            if let Some(lang_in_this_block) = block.language() {
+                // global
+                if let Some(this_lang_val) = language_use.get_mut(lang_in_this_block) {
+                    *this_lang_val += 1;
+                } else {
+                    language_use.insert(lang_in_this_block.to_string(), 1);
+                }
+                // column
+                if let Some(this_lang_val) = language_use_in_col.get_mut(lang_in_this_block) {
+                    *this_lang_val += 1;
+                } else {
+                    language_use_in_col.insert(lang_in_this_block.to_string(), 1);
+                }
+                // line
+                if let Some(this_lang_val) = language_use_in_line.get_mut(lang_in_this_block) {
+                    *this_lang_val += 1;
+                } else {
+                    language_use_in_line.insert(lang_in_this_block.to_string(), 1);
+                }
+            }
+
+            // add this block to this line - but there are a few exceptions:
+            match block {
+                // end this line, start a new one
+                streamed::Block::Break(streamed::BreakType::Line) => {
+                    let most_common_lang_in_line = language_use_in_line
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    lines.push(normalized::Line {
+                        lang: most_common_lang_in_line,
+                        n: line_idx,
+                        blocks: core::mem::take(&mut blocks_in_line), 
+                    });
+                    language_use_in_line = HashMap::<String, i32>::new();
+                    line_idx += 1;
+                }
+                // end this column, start a new one
+                streamed::Block::Break(streamed::BreakType::Column) => {
+                    // first end the line
+                    let most_common_lang_in_line = language_use_in_line
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    lines.push(normalized::Line {
+                        lang: most_common_lang_in_line,
+                        n: line_idx,
+                        blocks: core::mem::take(&mut blocks_in_line), 
+                    });
+                    language_use_in_line = HashMap::<String, i32>::new();
+                    line_idx = 1;
+
+                    // now end the column and go to the next one
+                    let most_common_lang_in_col = language_use_in_col
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    let take_lines = core::mem::take(&mut lines);
+                    columns.push(normalized::Column {
+                        lang: most_common_lang_in_col,
+                        n: column_idx,
+                        lines: take_lines,
+                    });
+                    language_use_in_col = HashMap::<String, i32>::new();
+                    column_idx += 1;
+                }
+                // end this line, skip several, start a new one
+                streamed::Block::Lacuna(l @ streamed::Lacuna {
+                    unit: streamed::ExtentUnit::Line,
+                    n: extent,
+                    ..
+                }) => {
+                    // first push the lacuna itself as a block
+                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+                    // then end the line
+                    let most_common_lang_in_line = language_use_in_line
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    lines.push(normalized::Line {
+                        lang: most_common_lang_in_line,
+                        n: line_idx,
+                        blocks: core::mem::take(&mut blocks_in_line),
+                    });
+                    language_use_in_line = HashMap::<String, i32>::new();
+                    line_idx += extent + 1;
+                }
+                // end this column, skip several, start a new one
+                streamed::Block::Lacuna(l @ streamed::Lacuna {
+                    unit: streamed::ExtentUnit::Column,
+                    n: extent,
+                    ..
+                }) => {
+                    // first push the lacuna itself as a block
+                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+                    // then end the line
+                    let most_common_lang_in_line = language_use_in_line
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    lines.push(normalized::Line {
+                        lang: most_common_lang_in_line,
+                        n: line_idx,
+                        blocks: core::mem::take(&mut blocks_in_line),
+                    });
+                    language_use_in_line = HashMap::<String, i32>::new();
+                    line_idx = 1;
+
+                    // and finally end the column, skip some and and go to the next one
+                    let most_common_lang_in_col = language_use_in_col
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .map(|x| x.to_string());
+                    columns.push(normalized::Column {
+                        lang: most_common_lang_in_col,
+                        n: column_idx,
+                        lines: core::mem::take(&mut lines),
+                    });
+                    language_use_in_col = HashMap::<String, i32>::new();
+                    lines.clear();
+                    column_idx += extent + 1;
+                }
+                // these are the normal blocks - just convert them
+                streamed::Block::Text(x) => {
+                    blocks_in_line.push(normalized::InlineBlock::Text(normalized::Paragraph {
+                        lang: Some(x.lang),
+                        content: x.content,
+                    }));
+                }
+                streamed::Block::Lacuna(l) => {
+                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+                }
+                streamed::Block::Uncertain(x) => {
+                    blocks_in_line.push(normalized::InlineBlock::Uncertain(
+                        normalized::Uncertain {
+                            lang: Some(x.lang),
+                            cert: x.cert,
+                            agent: x.agent,
+                            text: x.text,
+                        },
+                    ));
+                }
+                streamed::Block::Anchor(x) => {
+                    blocks_in_line.push(normalized::InlineBlock::Anchor(x));
+                }
+                streamed::Block::Correction(x) => {
+                    blocks_in_line.push(normalized::InlineBlock::Correction(
+                        normalized::Correction {
+                            lang: Some(x.lang),
+                            versions: x
+                                .versions
+                                .into_iter()
+                                .map(|v| normalized::Version {
+                                    lang: Some(v.lang),
+                                    hand: v.hand,
+                                    text: v.text,
+                                })
+                                .collect(),
+                        },
+                    ));
+                }
+                streamed::Block::Abbreviation(x) => {
+                    blocks_in_line.push(normalized::InlineBlock::Abbreviation(
+                        normalized::Abbreviation {
+                            lang: Some(x.lang),
+                            surface: x.surface,
+                            expansion: x.expansion,
+                        },
+                    ));
+                }
+            }
+        }
+
+        // calculate the language most commonly used in this text
+        let most_common_lang = language_use
+            .iter()
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map(|(k, _v)| k)
+            .ok_or(StreamError::NoBlockWithLanguage)?;
+
+        Ok(Self {
+            lang: most_common_lang.to_string(),
+            columns,
+        })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::normalized;
+    use crate::streamed;
+
+    /// We should be able to stream a normalized text
+    #[test]
+    fn stream_lines_inconsistent() {
+        let xml = include_str!("../examples/01_all_elements.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        assert_eq!(
+            streamed_res.unwrap_err(),
+            super::StreamError::LineIndexInconsistent(1, 2)
+        );
+    }
+
+    /// We should be able to stream a normalized text
+    #[test]
+    fn can_stream() {
+        let xml = include_str!("../examples/02_lines_consistent.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        assert!(streamed_res.is_ok());
+        let expected = streamed::Manuscript {
+            meta: streamed::Meta {
+                name: "Der Name voms dem Manuskripts".to_string(),
+                page_nr: "34 verso".to_string(),
+                title: "Manuskript Name folio 34 verso.".to_string(),
+                institution: Some("University of does-not-exist".to_string()),
+                collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
+                hand_desc: "There are two recognizable Hands: hand1 and hand2.".to_string(),
+                script_desc: "Die Schrift in diesem Manuskript gibt es.".to_string(),
+            },
+            content: vec![
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr".to_string(),
+                    content: "line 1 content. This line is completely preserved.".to_string(),
+                }),
+                streamed::Block::Lacuna(streamed::Lacuna {
+                    reason: "lost".to_string(),
+                    unit: streamed::ExtentUnit::Line,
+                    n: 1,
+                    cert: Some("high".to_string()),
+                }),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr".to_string(),
+                    content:
+                        "Line 3 content - line2 is the line that was skipped by the previous gap"
+                            .to_string(),
+                }),
+                streamed::Block::Break(streamed::BreakType::Line),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr-x-babli".to_string(),
+                    content: "Some stuff with babylonian Niqud".to_string(),
+                }),
+                streamed::Block::Break(streamed::BreakType::Column),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr-x-babli".to_string(),
+                    content: "Hier ein an".to_string(),
+                }),
+                streamed::Block::Break(streamed::BreakType::Line),
+                streamed::Block::Lacuna(streamed::Lacuna {
+                    reason: "lost".to_string(),
+                    unit: streamed::ExtentUnit::Column,
+                    n: 2,
+                    cert: Some("high".to_string()),
+                }),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr-x-babli".to_string(),
+                    content: "text".to_string(),
+                }),
+                streamed::Block::Break(streamed::BreakType::Column),
+            ],
+        };
+        assert_eq!(streamed_res.unwrap(), expected);
+    }
+
+    /// Taking a streamed text, destreaming and then restreaming it should be the identity
+    #[test]
+    fn stream_circ_destream_is_identity() {
+        let xml = include_str!("../examples/02_lines_consistent.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        assert!(streamed_res.is_ok());
+        let streamed = streamed_res.unwrap();
+
+        let destreamed: Result<normalized::Manuscript, _> =
+            streamed.clone().try_into();
+        assert!(destreamed.is_ok());
+        let restreamed: Result<streamed::Manuscript, _> = destreamed.unwrap().try_into();
+        assert!(restreamed.is_ok());
+        assert_eq!(streamed, restreamed.unwrap());
+    }
+}

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="TODO:schema-file" schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>
+                    Manuskript Name folio 34 verso.
+                </title>
+            </titleStmt>
+            <publicationStmt>
+                <p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>
+            </publicationStmt>
+            <sourceDesc>
+            <msDesc>
+                <msIdentifier>
+                    <institution>
+                        University of does-not-exist
+                    </institution>
+                    <collection>
+                    Collectors Edition 2 electric boogaloo
+                    </collection>
+		    <idNo>
+		    	34 verso
+		    </idNo>
+                    <msName>
+                        Der Name voms dem Manuskripts
+                    </msName>
+                </msIdentifier>
+                <physDesc>
+                    <handDesc>
+                        <summary>
+                            There are two recognizable Hands: hand1 and hand2.
+                        </summary>
+                    </handDesc>
+                    <scriptDesc>
+                        <summary>Die Schrift in diesem Manuskript gibt es.</summary>
+                    </scriptDesc>
+                </physDesc>
+            </msDesc>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <text>
+        <body xml:lang="hbo-Hebr">
+            <div type="column" n="1">
+	    	<div type="line" n="1">
+			<p>line 1 content. This line is completely preserved.</p>
+			<gap unit="line" n="1" cert="high" reason="lost"/>
+		</div>
+                <div type="line" n="3">
+                    <p>
+		    	Line 3 content - line2 is the line that was skipped by the previous gap
+                    </p>
+                </div>
+                <div type="line" xml:lang="hbo-Hebr-x-babli">
+                    <p>
+                        Some stuff with babylonian Niqud
+                    </p>
+                </div>
+            </div>
+            <div type="column">
+                <div type="line" n="1">
+                    <p>
+                    Hier ein an
+                    </p>
+                </div>
+		<div type="line">
+			<gap unit="column" n="2" cert="high" reason="lost"/>
+		</div>
+            </div>
+	    <div type="column" n="5">
+	    	<div type="line" n="1">
+			<p>text</p>
+		</div>
+	    </div>
+        </body>
+    </text>
+</TEI>
+

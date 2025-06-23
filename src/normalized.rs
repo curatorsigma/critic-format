@@ -3,6 +3,7 @@
 //! We (de-)serialize with the types in [`schema`](crate::schema) and then convert them to these nicer datatypes
 //! that do not have to map so closely to the xml format.
 
+/// An entire manuscript with normalized meta and content
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Manuscript {
     /// The header with any meta-information
@@ -29,7 +30,7 @@ pub struct Meta {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Text {
     /// the default language for text in this manuscript
-    pub lang: Option<String>,
+    pub lang: String,
     /// The columns present in this text
     pub columns: Vec<Column>,
 }
@@ -73,6 +74,18 @@ pub enum InlineBlock {
     Uncertain(Uncertain),
     Abbreviation(Abbreviation),
 }
+impl InlineBlock {
+    pub fn language(&self) -> Option<&str> {
+        match self {
+            Self::Lacuna(_) => None,
+            Self::Anchor(_) => None,
+            Self::Correction(x) => x.lang.as_deref(),
+            Self::Text(x) => x.lang.as_deref(),
+            Self::Uncertain(x) => x.lang.as_deref(),
+            Self::Abbreviation(x) => x.lang.as_deref(),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {
@@ -114,7 +127,7 @@ pub struct Version {
     pub lang: Option<String>,
     /// The scribal hand responsible for this reading
     ///
-    /// The difrent hands should be explained in the [`HandDesc`](crate::schema::HandDesc) in the header.
+    /// The different hands should be explained in the [`<handDesc>`](crate::schema::HandDesc) in the header.
     pub hand: Option<String>,
     /// The actual text of this reading
     pub text: String,
