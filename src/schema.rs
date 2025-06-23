@@ -113,17 +113,22 @@ pub struct Body {
     pub div: Vec<Column>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// A complete column in the manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Column {
+    /// The default language of text in this column
     #[serde(rename = "@lang")]
-    pub xml_lang: String,
+    pub xml_lang: Option<String>,
+    /// the type is `column`
+    /// This is only enforced on the normalized type, not while (de-)serializing xml
     #[serde(rename = "@type")]
     pub div_type: String,
+    /// the column number
     #[serde(rename = "@n")]
     pub n: Option<i32>,
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
-    pub div: Vec<Line>,
+    /// The lines in this column
+    #[serde(rename = "div")]
+    pub lines: Vec<Line>,
 }
 
 /// A complete line in the manuscript.
@@ -136,7 +141,7 @@ pub struct Line {
     /// This is only enforced on the normalized type, not while (de-)serializing xml
     #[serde(rename = "@type")]
     pub div_type: String,
-    /// the linenumber.
+    /// the line number
     #[serde(rename = "@n")]
     pub n: Option<i32>,
     /// The actual text elements contained in this line
@@ -699,6 +704,28 @@ mod test {
         );
     }
 
+    /// Line - with a bit of whitespace added
+    #[test]
+    fn line_w_whitespace() {
+        let xml = r#"<div xml:lang="grc" type="line" n="3">
+                <anchor xml:id="A_V_LXX_1Kg-3-4" type="Septuagint"/>
+            </div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Line {
+                xml_lang: Some("grc".to_string()),
+                div_type: "line".to_string(),
+                n: Some(3),
+                blocks: vec![InlineBlock::Anchor(Anchor {
+                    xml_id: "A_V_LXX_1Kg-3-4".to_string(),
+                    anchor_type: "Septuagint".to_string(),
+                })]
+            }
+        );
+    }
+
     /// Line - direct text not allowed
     #[test]
     fn line_direct_text() {
@@ -711,6 +738,14 @@ mod test {
     #[test]
     fn line_no_type() {
         let xml = r#"<div n="3"><p>text is allowed because it is in a </p></div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_err());
+    }
+
+    /// Line - at least one block must exist
+    #[test]
+    fn line_no_block() {
+        let xml = r#"<div n="3"></div>"#;
         let result: Result<Line, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
     }
@@ -748,6 +783,106 @@ mod test {
                         })
                     })
                 ]
+            }
+        );
+    }
+
+    /// Column with two lines and differing languages
+    #[test]
+    fn column_multiline_multiblock() {
+        let xml = r#"<div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" xml:lang="hbo-Hebr">
+                <gap reason="lost" n="2" unit="column"/>
+                <anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/>
+                <p><damage cert="low" agent="water">damaged</damage></p>
+            </div>
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>"#;
+        let result: Result<Column, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Column {
+                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                n: Some(1),
+                div_type: "column".to_string(),
+                lines: vec![
+                    Line {
+                        xml_lang: Some("hbo-Hebr".to_string()),
+                        div_type: "line".to_string(),
+                        n: None,
+                        blocks: vec![
+                            InlineBlock::Gap(Gap {
+                                reason: "lost".to_string(),
+                                n: 2,
+                                unit: ExtentUnit::Column,
+                                cert: None,
+                            }),
+                            InlineBlock::Anchor(Anchor {
+                                xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                                anchor_type: "Masoretic".to_string(),
+                            }),
+                            InlineBlock::P(TDOCWrapper {
+                                xml_lang: None,
+                                value: TextDamageOrChoice::Damage(Damage {
+                                    xml_lang: None,
+                                    cert: "low".to_string(),
+                                    agent: "water".to_string(),
+                                    text: "damaged".to_string()
+                                })
+                            })
+                        ]
+                    },
+                    Line {
+                        xml_lang: None,
+                        div_type: "line".to_string(),
+                        n: Some(3),
+                        blocks: vec![InlineBlock::Anchor(Anchor {
+                            xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                            anchor_type: "Masoretic".to_string(),
+                        })]
+                    }
+                ]
+            }
+        );
+    }
+
+    /// Column without content is not allowed - at least one line must exist
+    #[test]
+    fn column_no_lines() {
+        let xml = r#"<div type="column" n="3"></div>"#;
+        let result: Result<Column, _> = quick_xml::de::from_str(xml);
+        dbg!(&result);
+        assert!(result.is_err());
+    }
+
+    /// Column with one line is allowed
+    #[test]
+    fn column_single_line() {
+        let xml = r#"<div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>"#;
+        let result: Result<Column, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Column {
+                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                n: Some(1),
+                div_type: "column".to_string(),
+                lines: vec![Line {
+                    xml_lang: None,
+                    div_type: "line".to_string(),
+                    n: Some(3),
+                    blocks: vec![InlineBlock::Anchor(Anchor {
+                        xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                        anchor_type: "Masoretic".to_string(),
+                    })]
+                }]
             }
         );
     }
