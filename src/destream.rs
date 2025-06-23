@@ -582,7 +582,7 @@ mod test {
     }
 
     /// We should be able to stream a normalized text
-    // #[test]
+    #[test]
     fn can_stream() {
         let xml = include_str!("../examples/02_lines_consistent.xml");
         let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
@@ -625,7 +625,7 @@ mod test {
                 }),
                 streamed::Block::Break(streamed::BreakType::Column),
                 streamed::Block::Text(streamed::Paragraph {
-                    lang: "hbo-Hebr-x-babli".to_string(),
+                    lang: "hbo-Hebr".to_string(),
                     content: "Hier ein an".to_string(),
                 }),
                 streamed::Block::Break(streamed::BreakType::Line),
@@ -636,7 +636,7 @@ mod test {
                     cert: Some("high".to_string()),
                 }),
                 streamed::Block::Text(streamed::Paragraph {
-                    lang: "hbo-Hebr-x-babli".to_string(),
+                    lang: "hbo-Hebr".to_string(),
                     content: "text".to_string(),
                 }),
                 streamed::Block::Break(streamed::BreakType::Column),
