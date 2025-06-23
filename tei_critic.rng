@@ -5,7 +5,7 @@
          xmlns:xlink="http://www.w3.org/1999/xlink"
          datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
          ns="http://www.tei-c.org/ns/1.0"><!--
-Schema generated from ODD source 2025-06-22T17:13:36Z. . 
+Schema generated from ODD source 2025-06-23T10:14:06Z. . 
 TEI Edition: P5 Version 4.9.0. Last updated on 24th January 2025, revision f73186978 
 TEI Edition Location: https://www.tei-c.org/Vault/P5/4.9.0/ 
   
@@ -2438,6 +2438,7 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
    <define name="tei_model.publicationStmtPart.detail">
       <choice>
          <ref name="tei_model.ptrLike"/>
+         <ref name="tei_idno"/>
       </choice>
    </define>
    <define name="tei_model.certLike">
@@ -2541,6 +2542,7 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
          <ref name="tei_msItem"/>
          <ref name="tei_msItemStruct"/>
          <ref name="tei_decoNote"/>
+         <ref name="tei_idno"/>
       </choice>
    </define>
    <define name="tei_model.choicePart">
@@ -2576,6 +2578,7 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
          <ref name="tei_model.nameLike.agent"/>
          <ref name="tei_model.offsetLike"/>
          <ref name="tei_model.placeStateLike"/>
+         <ref name="tei_idno"/>
       </choice>
    </define>
    <define name="tei_model.nameLike_alternation">
@@ -2583,12 +2586,14 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
          <ref name="tei_model.nameLike.agent_alternation"/>
          <ref name="tei_model.offsetLike_alternation"/>
          <ref name="tei_model.placeStateLike_alternation"/>
+         <ref name="tei_idno"/>
       </choice>
    </define>
    <define name="tei_model.nameLike_sequence">
       <ref name="tei_model.nameLike.agent_sequence"/>
       <ref name="tei_model.offsetLike_sequence"/>
       <ref name="tei_model.placeStateLike_sequence"/>
+      <ref name="tei_idno"/>
    </define>
    <define name="tei_model.nameLike_sequenceOptional">
       <optional>
@@ -2599,6 +2604,9 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
       </optional>
       <optional>
          <ref name="tei_model.placeStateLike_sequenceOptional"/>
+      </optional>
+      <optional>
+         <ref name="tei_idno"/>
       </optional>
    </define>
    <define name="tei_model.nameLike_sequenceOptionalRepeatable">
@@ -2611,6 +2619,9 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
       <zeroOrMore>
          <ref name="tei_model.placeStateLike_sequenceOptionalRepeatable"/>
       </zeroOrMore>
+      <zeroOrMore>
+         <ref name="tei_idno"/>
+      </zeroOrMore>
    </define>
    <define name="tei_model.nameLike_sequenceRepeatable">
       <oneOrMore>
@@ -2621,6 +2632,9 @@ Sample values include: 1] rubbing; 2] mildew; 3] smoke</a:documentation>
       </oneOrMore>
       <oneOrMore>
          <ref name="tei_model.placeStateLike_sequenceRepeatable"/>
+      </oneOrMore>
+      <oneOrMore>
+         <ref name="tei_idno"/>
       </oneOrMore>
    </define>
    <define name="tei_model.global">
@@ -3430,6 +3444,9 @@ Sample values include: 1] binding; 2] endband; 3] slipcase; 4] support; 5] tie</
                <zeroOrMore>
                   <ref name="tei_collection"/>
                </zeroOrMore>
+               <zeroOrMore>
+                  <ref name="tei_idno"/>
+               </zeroOrMore>
             </group>
             <zeroOrMore>
                <choice>
@@ -3493,6 +3510,7 @@ Sample values include: 1] binding; 2] endband; 3] slipcase; 4] support; 5] tie</
             <optional>
                <ref name="tei_collection"/>
             </optional>
+            <ref name="tei_idno"/>
          </group>
          <ref name="tei_att.global.attributes"/>
          <ref name="tei_att.datable.attributes"/>
@@ -6074,6 +6092,54 @@ Sample values include: 1] Unicode (Unicode); 2] Bridwell (E. Nelson Bridwell); 3
             </oneOrMore>
          </choice>
          <ref name="tei_att.global.attributes"/>
+         <empty/>
+      </element>
+   </define>
+   <define name="tei_idno">
+      <element name="idno">
+         <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">(identifier) supplies any form of identifier used to identify some object, such as a bibliographic item, a person, a title, an organization, etc. in a standardized way. [14.3.1. Basic Principles 2.2.4. Publication, Distribution, Licensing, etc. 2.2.5. The Series Statement 3.12.2.4. Imprint, Size of a Document, and Reprint Information]</a:documentation>
+         <zeroOrMore>
+            <choice>
+               <text/>
+               <ref name="tei_model.gLike"/>
+               <ref name="tei_idno"/>
+            </choice>
+         </zeroOrMore>
+         <ref name="tei_att.global.attributes"/>
+         <ref name="tei_att.cmc.attributes"/>
+         <ref name="tei_att.datable.attributes"/>
+         <ref name="tei_att.sortable.attributes"/>
+         <ref name="tei_att.typed.attribute.subtype"/>
+         <optional>
+            <attribute name="type">
+               <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">categorizes the identifier, for example as an ISBN, Social Security number, etc.
+Suggested values include: 1] ISBN; 2] ISSN; 3] DOI; 4] URI; 5] VIAF; 6] ESTC; 7] OCLC</a:documentation>
+               <choice>
+                  <value>ISBN</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">International Standard Book Number: a 13- or (if assigned prior to 2007) 10-digit identifying number assigned by the publishing industry to a published book or similar item, registered with the <a xmlns="http://www.w3.org/1999/xhtml"
+                        xmlns:rng="http://relaxng.org/ns/structure/1.0"
+                        href="https://www.isbn-international.org"> International ISBN Agency.</a>
+                  </a:documentation>
+                  <value>ISSN</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">International Standard Serial Number: an eight-digit number to uniquely identify a serial publication.</a:documentation>
+                  <value>DOI</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">Digital Object Identifier: a unique string of letters and numbers assigned to an electronic document.</a:documentation>
+                  <value>URI</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">Uniform Resource Identifier: a string of characters to uniquely identify a resource, following the syntax of <a xmlns="http://www.w3.org/1999/xhtml"
+                        xmlns:rng="http://relaxng.org/ns/structure/1.0"
+                        href="https://datatracker.ietf.org/doc/html/rfc3986">RFC 3986</a>.</a:documentation>
+                  <value>VIAF</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">A data number in the Virtual Internet Authority File assigned to link different names in catalogs around the world for the same entity.</a:documentation>
+                  <value>ESTC</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">English Short-Title Catalogue number: an identifying number assigned to a document in English printed in the British Isles or North America before 1801.</a:documentation>
+                  <value>OCLC</value>
+                  <a:documentation xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">OCLC control number (record number) for the union catalog record in WorldCat, a union catalog for member libraries in the Online Computer Library Center global cooperative.</a:documentation>
+                  <data type="token">
+                     <param name="pattern">[^\p{C}\p{Z}]+</param>
+                  </data>
+               </choice>
+            </attribute>
+         </optional>
          <empty/>
       </element>
    </define>
