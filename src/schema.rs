@@ -1367,4 +1367,13 @@ mod test {
     };
         assert_eq!(result.unwrap(), tei);
     }
+
+    // https://github.com/tafia/quick-xml/issues/841
+    // #[test]
+    // fn lang_attribute_serialized_with_xml() {
+    //     let dmg = Damage {lang: Some("language".to_string()), cert: "high".to_string(), agent: "agent".to_string(), text: "text".to_string()};
+    //     let sr = quick_xml::se::to_string(&dmg);
+    //     dbg!(&sr);
+    //     assert_eq!(sr.unwrap(), r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string());
+    // }
 }

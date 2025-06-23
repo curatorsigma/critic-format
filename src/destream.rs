@@ -459,6 +459,35 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
             }
         }
 
+        // now we need to add the remaining blocks as a final line/column as in a column break
+        if !blocks_in_line.is_empty() {
+            // first end the line
+            let most_common_lang_in_line = language_use_in_line
+                .iter()
+                .max_by(|a, b| a.1.cmp(b.1))
+                .map(|(k, _v)| k)
+                .map(std::string::ToString::to_string);
+            lines.push(normalized::Line {
+                lang: most_common_lang_in_line,
+                n: line_idx,
+                blocks: core::mem::take(&mut blocks_in_line),
+            });
+        }
+        if !lines.is_empty() {
+            // now end the column and go to the next one
+            let most_common_lang_in_col = language_use_in_col
+                .iter()
+                .max_by(|a, b| a.1.cmp(b.1))
+                .map(|(k, _v)| k)
+                .map(std::string::ToString::to_string);
+            let take_lines = core::mem::take(&mut lines);
+            columns.push(normalized::Column {
+                lang: most_common_lang_in_col,
+                n: column_idx,
+                lines: take_lines,
+            });
+        }
+
         // calculate the language most commonly used in this text
         let most_common_lang = language_use
             .iter()
