@@ -90,6 +90,8 @@ pub struct MsIdentifier {
     /// The name of this manuscript (NOT including folio/page numbers)
     #[serde(rename = "msName")]
     pub ms_name: String,
+    #[serde(rename = "idNo")]
+    pub page_nr: String,
 }
 
 /// Description of the physical properties of this manuscript.
@@ -1164,7 +1166,6 @@ mod test {
     fn tei() {
         let xml = include_str!("../examples/01_all_elements.xml");
         let result: Result<Tei, _> = quick_xml::de::from_str(xml);
-        dbg!(&result);
         assert!(result.is_ok());
 
         let tei = Tei {
@@ -1187,6 +1188,7 @@ mod test {
                                 "Collectors Edition 2 electric boogaloo".to_string(),
                             ),
                             ms_name: "Der Name voms dem Manuskripts".to_string(),
+                            page_nr: "34 verso".to_string(),
                         },
                         phys_desc: PhysDesc {
                             hand_desc: HandDesc {

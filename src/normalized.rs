@@ -1,7 +1,7 @@
 //! Rust types that map more directly to the semantics of our data.
 //!
 //! We (de-)serialize with the types in [`schema`] and then convert them to these nicer datatypes
-//! that do not have to map so closely to the XMl format.
+//! that do not have to map so closely to the xml format.
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Manuscript {
@@ -11,18 +11,12 @@ pub struct Manuscript {
     pub text: Text,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum RectoVerso {
-    Recto,
-    Verso,
-}
-
 /// TEI fileDesc element - descripbes this file.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Meta {
     pub name: String,
-    pub folio_nr: i32,
-    pub recto_verso: RectoVerso,
+    /// number of the page (or folio/r-v)
+    pub page_nr: String,
     /// Title of this manuscript
     pub title_stmt: String,
     pub institution: Option<String>,
