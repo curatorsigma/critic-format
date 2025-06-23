@@ -1,99 +1,123 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+/// The complete TEI document.
+///
+/// Note that two additional lines are not included here but should be present and output to file:
+/// ```xml
+/// <?xml version="1.0" encoding="UTF-8"?>
+/// <?xml-model href="file:TODO-online-schema-location" schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+/// ```
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Tei {
+    /// MUST be `http://www.tei-c.org/ns/1.0`
     #[serde(rename = "@xmlns")]
     pub xmlns: String,
-    #[serde(rename = "$text")]
-    pub text_content: Option<String>,
+    /// The header with any meta-information
     #[serde(rename = "teiHeader")]
     pub tei_header: TeiHeader,
+    /// the actual text
     pub text: Text,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// TEI Header with metainformation about a folio.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct TeiHeader {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// TEI fileDesc element - describes this file
     #[serde(rename = "fileDesc")]
     pub file_desc: FileDesc,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// TEI fileDesc element - descripbes this file.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct FileDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// Title of this manuscript
     #[serde(rename = "titleStmt")]
     pub title_stmt: TitleStmt,
+    /// How this transcription is published
     #[serde(rename = "publicationStmt")]
     pub publication_stmt: PublicationStmt,
+    /// Description of the transcribed manuscript
     #[serde(rename = "sourceDesc")]
     pub source_desc: SourceDesc,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Title of this manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct TitleStmt {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// Title MUST be
+    /// `{manuscript-name} Folio {folio-number} {recto/verso}`
     pub title: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// How this transcription is published.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct PublicationStmt {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// MUST be
+    /// ```xml
+    /// This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.
+    /// ```
     pub p: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Description of the transcribed manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct SourceDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// TEI msDesc element
     #[serde(rename = "msDesc")]
     pub ms_desc: MsDesc,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// TEI msDesc element - Description of the transcribed manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MsDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// Information that can identify this manuscript
     #[serde(rename = "msIdentifier")]
     pub ms_identifier: MsIdentifier,
+    /// Description of the physical properties of this manuscript
     #[serde(rename = "physDesc")]
     pub phys_desc: PhysDesc,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Information that can identify this manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MsIdentifier {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
-    pub institution: String,
-    pub collection: String,
+    /// The institution holding this manuscript
+    pub institution: Option<String>,
+    /// The collection this manuscript is a part of
+    pub collection: Option<String>,
+    /// The name of this manuscript (NOT including folio/page numbers)
     #[serde(rename = "msName")]
     pub ms_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Description of the physical properties of this manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct PhysDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// Description of the scribal hands present in this manuscript
     #[serde(rename = "handDesc")]
     pub hand_desc: HandDesc,
+    /// Description of the scripts present in this manuscript
     #[serde(rename = "scriptDesc")]
     pub script_desc: ScriptDesc,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Description of the scribal hands present in this manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct HandDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// A human readable summary of the hands present in this manuscript
+    ///
+    /// Different hands should be listed and given names by which they can be referred to in
+    /// corrections in the [`Text`]
     pub summary: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Description of the scripts present in this manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct ScriptDesc {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// A human readable summary of the scripts present in this manuscript
+    ///
+    /// If there are multiple languages present, a short summary should be given of the script used
+    /// for each of these languages
     pub summary: String,
 }
 
@@ -1039,40 +1063,247 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Text {
-                body:
-            Body {
-                xml_lang: Some("grc".to_string()),
+                body: Body {
+                    xml_lang: Some("grc".to_string()),
+                    columns: vec![
+                        Column {
+                            xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                            n: Some(1),
+                            div_type: "column".to_string(),
+                            lines: vec![Line {
+                                xml_lang: None,
+                                div_type: "line".to_string(),
+                                n: Some(3),
+                                blocks: vec![InlineBlock::Anchor(Anchor {
+                                    xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                                    anchor_type: "Masoretic".to_string(),
+                                })]
+                            }]
+                        },
+                        Column {
+                            xml_lang: Some("hbo-Hebr".to_string()),
+                            n: Some(2),
+                            div_type: "column".to_string(),
+                            lines: vec![Line {
+                                xml_lang: None,
+                                div_type: "line".to_string(),
+                                n: Some(1),
+                                blocks: vec![InlineBlock::P(TDOCWrapper {
+                                    xml_lang: None,
+                                    value: TextDamageOrChoice::Text("Some text here".to_string())
+                                })]
+                            }]
+                        }
+                    ]
+                }
+            }
+        );
+    }
+
+    /// an entire manuscript
+    #[test]
+    fn tei() {
+        let xml = include_str!("../examples/01_all_elements.xml");
+        let result: Result<Tei, _> = quick_xml::de::from_str(xml);
+        dbg!(&result);
+        assert!(result.is_ok());
+
+        let tei = Tei {
+        xmlns: "http://www.tei-c.org/ns/1.0".to_string(),
+        tei_header: TeiHeader {
+            file_desc: FileDesc {
+                title_stmt: TitleStmt {
+                    title: "Manuskript Name folio 34 verso.".to_string(),
+                },
+                publication_stmt: PublicationStmt {
+                    p: "This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.".to_string(),
+                },
+                source_desc: SourceDesc {
+                    ms_desc: MsDesc {
+                        ms_identifier: MsIdentifier {
+                            institution: Some(
+                                "University of does-not-exist".to_string(),
+                            ),
+                            collection: Some(
+                                "Collectors Edition 2 electric boogaloo".to_string(),
+                            ),
+                            ms_name: "Der Name voms dem Manuskripts".to_string(),
+                        },
+                        phys_desc: PhysDesc {
+                            hand_desc: HandDesc {
+                                summary: "There are two recognizable Hands: hand1 and hand2.".to_string(),
+                            },
+                            script_desc: ScriptDesc {
+                                summary: "Die Schrift in diesem Manuskript gibt es.".to_string(),
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        text: Text {
+            body: Body {
+                xml_lang: Some(
+                    "hbo-Hebr".to_string(),
+                ),
                 columns: vec![
                     Column {
-                        xml_lang: Some("hbo-Hebr-x-babli".to_string()),
-                        n: Some(1),
+                        xml_lang: None,
                         div_type: "column".to_string(),
-                        lines: vec![Line {
-                            xml_lang: None,
-                            div_type: "line".to_string(),
-                            n: Some(3),
-                            blocks: vec![InlineBlock::Anchor(Anchor {
-                                xml_id: "A_V_MT_1Kg-3-5".to_string(),
-                                anchor_type: "Masoretic".to_string(),
-                            })]
-                        }]
+                        n: Some(
+                            1,
+                        ),
+                        lines: vec![
+                            Line {
+                                xml_lang: None,
+                                div_type: "line".to_string(),
+                                n: Some(
+                                    2,
+                                ),
+                                blocks: vec![
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Text(
+                                                "asdfa".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::Anchor(
+                                        Anchor {
+                                            xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                                            anchor_type: "Masoretic".to_string(),
+                                        },
+                                    ),
+                                    InlineBlock::Anchor(
+                                        Anchor {
+                                            xml_id: "A_V_LXX_1Kg-3-4".to_string(),
+                                            anchor_type: "Septuagint".to_string(),
+                                        },
+                                    ),
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Text(
+                                                "sdfsa".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                ],
+                            },
+                            Line {
+                                xml_lang: Some(
+                                    "hbo-Hebr-x-babli".to_string(),
+                                ),
+                                div_type: "line".to_string(),
+                                n: None,
+                                blocks: vec![
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Text(
+                                                "Some stuff with babylonian Niqud".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                ],
+                            },
+                        ],
                     },
                     Column {
-                        xml_lang: Some("hbo-Hebr".to_string()),
-                        n: Some(2),
+                        xml_lang: None,
                         div_type: "column".to_string(),
-                        lines: vec![Line {
-                            xml_lang: None,
-                            div_type: "line".to_string(),
-                            n: Some(1),
-                            blocks: vec![InlineBlock::P(TDOCWrapper {
+                        n: None,
+                        lines: vec![
+                            Line {
                                 xml_lang: None,
-                                value: TextDamageOrChoice::Text("Some text here".to_string())
-                            })]
-                        }]
-                    }
-                ]
-            }}
-        );
+                                div_type: "line".to_string(),
+                                n: Some(
+                                    2,
+                                ),
+                                blocks: vec![
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Text(
+                                                "Hier ein an".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Damage(
+                                                Damage {
+                                                    xml_lang: None,
+                                                    cert: "high".to_string(),
+                                                    agent: "water".to_string(),
+                                                    text: "d".to_string(),
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Text(
+                                                "erer, wo der Buchstabe nur etwas kaputt ist.".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::Gap(
+                                        Gap {
+                                            reason: "lost".to_string(),
+                                            n: 12,
+                                            unit: ExtentUnit::Character,
+                                            cert: Some(
+                                                "0.10".to_string(),
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::P(
+                                        TDOCWrapper {
+                                            xml_lang: None,
+                                            value: TextDamageOrChoice::Choice(
+                                                Choice {
+                                                    xml_lang: None,
+                                                    abbr: "JHWH".to_string(),
+                                                    expan: "Jahwe".to_string(),
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    InlineBlock::App(
+                                        App {
+                                            xml_lang: None,
+                                            rdg: vec![
+                                                Rdg {
+                                                    xml_lang: None,
+                                                    hand: Some(
+                                                        "hand1".to_string(),
+                                                    ),
+                                                    var_seq: 1,
+                                                    text: "sam stuff 1".to_string(),
+                                                },
+                                                Rdg {
+                                                    xml_lang: None,
+                                                    hand: Some(
+                                                        "hand2".to_string(),
+                                                    ),
+                                                    var_seq: 2,
+                                                    text: "sam stuff 2".to_string(),
+                                                },
+                                            ],
+                                        },
+                                    ),
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    };
+        assert_eq!(result.unwrap(), tei);
     }
 }
