@@ -1,3 +1,5 @@
+//! The schema for directly (de-)serializing into xml.
+
 use serde::{Deserialize, Serialize};
 
 /// The complete TEI document.
@@ -123,7 +125,7 @@ pub struct ScriptDesc {
 
 /// The entire transcribed text.
 ///
-/// This struct is just a trivial wrapper around body, because the TEI spec requires ist.
+/// This struct is just a trivial wrapper around [`<body>`](Body), because the TEI spec requires that.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Text {
     /// the actual body
@@ -184,12 +186,19 @@ pub struct Line {
 /// These are atomic units of text, that NEVER overlap linebreaks.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum InlineBlock {
+    /// Things in a `<p>`
+    ///
+    /// This only exists because in the TEI spec, things like `<damage>` are in `<p>` while things like
+    /// `<gap>` are not in a `<p>`
     #[serde(rename = "p")]
     P(TDOCWrapper),
+    /// A lacuna in the manuscript
     #[serde(rename = "gap")]
     Gap(Gap),
+    /// An anchor - the beginning of a verse
     #[serde(rename = "anchor")]
     Anchor(Anchor),
+    /// A correction in the manuscript - where one scribal hand has overwritte / struck through / .. a text that was present earlier
     #[serde(rename = "app")]
     App(App),
 }
@@ -197,8 +206,10 @@ pub enum InlineBlock {
 /// Intermediate Wrapper struct required for XML (de-)serialization.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct TDOCWrapper {
+    /// The language set on the `<p>` element
     #[serde(rename = "@lang")]
     xml_lang: Option<String>,
+    /// The actual content we care about
     #[serde(rename = "$value")]
     value: TextDamageOrChoice,
 }
@@ -209,79 +220,125 @@ pub struct TDOCWrapper {
 /// has no actual semantic.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TextDamageOrChoice {
+    /// Raw text - this is text clearly visible in the manuscript
     #[serde(rename = "$text")]
     Text(String),
+    /// Damaged text
     #[serde(rename = "damage")]
     Damage(Damage),
+    /// An expanded abbreviation
     #[serde(rename = "choice")]
     Choice(Choice),
 }
 
+/// The beginning of a verse.
+///
+/// This could either be marked in the manuscript (Sof Passuq, verse number etc.) or supplied from
+/// other manuscripts if it is certain which verse begins at this point.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Anchor {
+    /// The ID of this verse.
+    ///
+    /// MUST be `A_V_{versification-theme-shorthand}_{verse-number}`
     #[serde(rename = "@id")]
     pub xml_id: String,
+    /// MUST be `{versification-theme-long-form}`
     #[serde(rename = "@type")]
     pub anchor_type: String,
 }
 
+/// A damaged part of the text that is still legible, but hard to read.
+///
+/// If a part of the text is illegible, use [`<gap>`](Gap) instead.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Damage {
+    /// The language set on the `<damage>` element
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
+    /// The certainty the transcriber assigns to the reconstruction of the damaged text
     #[serde(rename = "@cert")]
     pub cert: String,
+    /// The cause of damage
     #[serde(rename = "@agent")]
     pub agent: String,
+    /// The reproduction of the damaged text
     #[serde(rename = "$text")]
     pub text: String,
 }
 
+/// An expanded Abbreviation.
+///
+/// For corrections, use [`<app>`](App) instead.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Choice {
+    /// The language set on the `<choice>` element
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
+    /// The surface form (the abbreviation) present in the manuscript
     pub abbr: String,
+    /// The expanded form supplied by the transcriber
     pub expan: String,
 }
 
+/// An ancient correction.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct App {
+    /// The language set on the `<app>` element
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
+    /// A list of different readings. Each form this manuscript had at one point should get its own
+    /// reading and be written out in its entirety here.
     pub rdg: Vec<Rdg>,
 }
 
+/// An individual reading (version) inside a correction.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Rdg {
+    /// the language set on the `<rdg>`
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
+    /// The scribal hand responsible for this reading
+    ///
+    /// The difrent hands should be explained in the [`HandDesc`] in the header.
     #[serde(rename = "@hand")]
     pub hand: Option<String>,
+    /// The number of this reading (i.e. 1 for the first version, 2 for the second version etc.)
     #[serde(rename = "@varSeq")]
     pub var_seq: i32,
+    /// The actual text of this reading
     #[serde(rename = "$text")]
     pub text: String,
 }
 
+/// A lacuna.
+///
+/// For damaged but legible text, use [`<damage>`](Damage) instead.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Gap {
+    /// The reason this text is lacunous
     #[serde(rename = "@reason")]
     pub reason: String,
-    #[serde(rename = "@n")]
-    pub n: i32,
+    /// The unit in which the approximate extent of this lacuna is given
     #[serde(rename = "@unit")]
     pub unit: ExtentUnit,
+    /// The extent of this lacuna in the given unit
+    #[serde(rename = "@n")]
+    pub n: i32,
+    /// The certainty for the approximate extent
     #[serde(rename = "@cert")]
     pub cert: Option<String>,
 }
 
+/// The unit used to express extent of a part of Text.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum ExtentUnit {
+    /// Single character
     #[serde(rename = "character")]
     Character,
+    /// A line
     #[serde(rename = "line")]
     Line,
+    /// A column
     #[serde(rename = "column")]
     Column,
 }
