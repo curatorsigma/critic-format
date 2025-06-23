@@ -97,20 +97,24 @@ pub struct ScriptDesc {
     pub summary: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// The entire transcribed text.
+///
+/// This struct is just a trivial wrapper around body, because the TEI spec requires ist.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Text {
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
+    /// the actual body
     pub body: Body,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// The entire transcribed text body
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Body {
+    /// the default language for text in this manuscript
     #[serde(rename = "@lang")]
-    pub xml_lang: String,
-    #[serde(rename = "$text")]
-    pub text: Option<String>,
-    pub div: Vec<Column>,
+    pub xml_lang: Option<String>,
+    /// The columns present in this text
+    #[serde(rename = "div")]
+    pub columns: Vec<Column>,
 }
 
 /// A complete column in the manuscript.
@@ -261,7 +265,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn deser_choice() {
+    fn choice() {
         let xml = r#"<choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -277,7 +281,7 @@ mod test {
 
     /// adding superfluous elements is irrelevant - this is not always tested
     #[test]
-    fn deser_choice_added_text() {
+    fn choice_added_text() {
         let xml = r#"<choice>text<abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -293,7 +297,7 @@ mod test {
 
     /// changing order is also irrelevant - not always tested
     #[test]
-    fn deser_choice_changed_order() {
+    fn choice_changed_order() {
         let xml = r#"<choice><expan>Jahwe</expan><abbr>JHWH</abbr></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -309,7 +313,7 @@ mod test {
 
     /// Missing elements lead to errors - not always tested
     #[test]
-    fn deser_choice_missing_expan() {
+    fn choice_missing_expan() {
         let xml = r#"<choice><abbr>JHWH</abbr></choice>"#;
         let result: Result<Choice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
@@ -317,7 +321,7 @@ mod test {
 
     /// base case - everything is here
     #[test]
-    fn deser_gap() {
+    fn gap() {
         let xml = r#"<gap reason="lost" n="2" unit="column" cert="high"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -334,7 +338,7 @@ mod test {
 
     /// cert is optional
     #[test]
-    fn deser_gap_no_cert() {
+    fn gap_no_cert() {
         let xml = r#"<gap reason="lost" n="2" unit="line"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -351,7 +355,7 @@ mod test {
 
     /// only line character and column are supported
     #[test]
-    fn deser_gap_allowed_units_correct() {
+    fn gap_allowed_units_correct() {
         let xml = r#"<gap reason="lost" n="2" unit="character"/>"#;
         let result: Result<Gap, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -398,7 +402,7 @@ mod test {
 
     /// rdg - base case
     #[test]
-    fn deser_rdg() {
+    fn rdg() {
         let xml = r#"<rdg hand="handname" varSeq="1">The content.</rdg>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -415,7 +419,7 @@ mod test {
 
     /// rdg - hand is optional
     #[test]
-    fn deser_rdg_no_hand() {
+    fn rdg_no_hand() {
         let xml = r#"<rdg varSeq="1">The content.</rdg>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -432,7 +436,7 @@ mod test {
 
     /// rdg - varSeq is not optional
     #[test]
-    fn deser_rdg_no_varseq() {
+    fn rdg_no_varseq() {
         let xml = r#"<rdg>The content.</rdg>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
@@ -440,7 +444,7 @@ mod test {
 
     /// rdg - text is not optional
     #[test]
-    fn deser_rdg_no_text() {
+    fn rdg_no_text() {
         let xml = r#"<rdg varSeq="3"/>"#;
         let result: Result<Rdg, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
@@ -448,7 +452,7 @@ mod test {
 
     /// app - a list of rdgs
     #[test]
-    fn deser_app() {
+    fn app() {
         let xml = r#"<app><rdg varSeq="1">Content1</rdg><rdg varSeq="2">Content2</rdg></app>"#;
         let result: Result<App, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -476,7 +480,7 @@ mod test {
 
     /// damage - base case
     #[test]
-    fn deser_damage() {
+    fn damage() {
         let xml = r#"<damage cert="low" agent="water">damaged</damage>"#;
         let result: Result<Damage, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -493,7 +497,7 @@ mod test {
 
     /// damage - with language
     #[test]
-    fn deser_damage_with_lang() {
+    fn damage_with_lang() {
         let xml = r#"<damage xml:lang="en" cert="low" agent="water">damaged</damage>"#;
         let result: Result<Damage, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -510,7 +514,7 @@ mod test {
 
     /// anchor - base case
     #[test]
-    fn deser_anchor() {
+    fn anchor() {
         let xml = r#"<anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/>"#;
         let result: Result<Anchor, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -525,7 +529,7 @@ mod test {
 
     /// TextDamageOrChoice - text
     #[test]
-    fn deser_text_damage_or_choice_text() {
+    fn text_damage_or_choice_text() {
         let xml = r#"raw stuff"#;
         let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -537,7 +541,7 @@ mod test {
 
     /// TextDamageOrChoice - damage
     #[test]
-    fn deser_text_damage_or_choice_damage() {
+    fn text_damage_or_choice_damage() {
         let xml = r#"<damage cert="low" agent="water">damaged</damage>"#;
         let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -554,7 +558,7 @@ mod test {
 
     /// TextDamageOrChoice - Choice
     #[test]
-    fn deser_text_damage_or_choice_choice() {
+    fn text_damage_or_choice_choice() {
         let xml = r#"<choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice>"#;
         let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
@@ -570,7 +574,7 @@ mod test {
 
     /// TextDamageOrChoice - Choice
     #[test]
-    fn deser_text_damage_or_choice_other() {
+    fn text_damage_or_choice_other() {
         let xml = r#"<app/>"#;
         let result: Result<TextDamageOrChoice, _> = quick_xml::de::from_str(xml);
         assert!(result.is_err());
@@ -884,6 +888,161 @@ mod test {
                     })]
                 }]
             }
+        );
+    }
+
+    /// Body with a single column
+    #[test]
+    fn body_1_by_1() {
+        let xml = r#"<body xml:lang="grc">
+            <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>
+            </body>"#;
+        let result: Result<Body, _> = quick_xml::de::from_str(xml);
+        dbg!(&result);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Body {
+                xml_lang: Some("grc".to_string()),
+                columns: vec![Column {
+                    xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                    n: Some(1),
+                    div_type: "column".to_string(),
+                    lines: vec![Line {
+                        xml_lang: None,
+                        div_type: "line".to_string(),
+                        n: Some(3),
+                        blocks: vec![InlineBlock::Anchor(Anchor {
+                            xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                            anchor_type: "Masoretic".to_string(),
+                        })]
+                    }]
+                }]
+            }
+        );
+    }
+
+    /// Body - no language is allowed. Setting a master language will only be enforced when
+    /// normalizing
+    #[test]
+    fn body_2_by_1() {
+        let xml = r#"<body>
+            <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>
+            <div type="column" n="2" xml:lang="hbo-Hebr">
+            <div type="line" n="1">
+                <p>
+                    Some text here
+                </p>
+            </div>
+            </div>
+            </body>"#;
+        let result: Result<Body, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Body {
+                xml_lang: None,
+                columns: vec![
+                    Column {
+                        xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                        n: Some(1),
+                        div_type: "column".to_string(),
+                        lines: vec![Line {
+                            xml_lang: None,
+                            div_type: "line".to_string(),
+                            n: Some(3),
+                            blocks: vec![InlineBlock::Anchor(Anchor {
+                                xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                                anchor_type: "Masoretic".to_string(),
+                            })]
+                        }]
+                    },
+                    Column {
+                        xml_lang: Some("hbo-Hebr".to_string()),
+                        n: Some(2),
+                        div_type: "column".to_string(),
+                        lines: vec![Line {
+                            xml_lang: None,
+                            div_type: "line".to_string(),
+                            n: Some(1),
+                            blocks: vec![InlineBlock::P(TDOCWrapper {
+                                xml_lang: None,
+                                value: TextDamageOrChoice::Text("Some text here".to_string())
+                            })]
+                        }]
+                    }
+                ]
+            }
+        );
+    }
+
+    /// Text - simply wraps a body
+    #[test]
+    fn text() {
+        let xml = r#"
+            <text>
+            <body xml:lang="grc">
+            <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>
+            <div type="column" n="2" xml:lang="hbo-Hebr">
+            <div type="line" n="1">
+                <p>
+                    Some text here
+                </p>
+            </div>
+            </div>
+            </body>
+            </text>"#;
+        let result: Result<Text, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Text {
+                body:
+            Body {
+                xml_lang: Some("grc".to_string()),
+                columns: vec![
+                    Column {
+                        xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                        n: Some(1),
+                        div_type: "column".to_string(),
+                        lines: vec![Line {
+                            xml_lang: None,
+                            div_type: "line".to_string(),
+                            n: Some(3),
+                            blocks: vec![InlineBlock::Anchor(Anchor {
+                                xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                                anchor_type: "Masoretic".to_string(),
+                            })]
+                        }]
+                    },
+                    Column {
+                        xml_lang: Some("hbo-Hebr".to_string()),
+                        n: Some(2),
+                        div_type: "column".to_string(),
+                        lines: vec![Line {
+                            xml_lang: None,
+                            div_type: "line".to_string(),
+                            n: Some(1),
+                            blocks: vec![InlineBlock::P(TDOCWrapper {
+                                xml_lang: None,
+                                value: TextDamageOrChoice::Text("Some text here".to_string())
+                            })]
+                        }]
+                    }
+                ]
+            }}
         );
     }
 }
