@@ -38,7 +38,7 @@ The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined
 - The `msDesc` MUST have
     - `msIdentifier`, defining the physical manuscript reproduced:
         - `msName` MUST be given
-        - `idNo` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
+        - `idno` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
         - `institution` SHOULD be given if relevant
         - `collection` MAY be given if relevant
 - `physDesc` MUST be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.

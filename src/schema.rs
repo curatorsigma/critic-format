@@ -88,10 +88,10 @@ pub struct MsIdentifier {
     /// The collection this manuscript is a part of
     pub collection: Option<String>,
     /// The name of this manuscript (NOT including folio/page numbers)
+    #[serde(rename = "idno")]
+    pub page_nr: String,
     #[serde(rename = "msName")]
     pub ms_name: String,
-    #[serde(rename = "idNo")]
-    pub page_nr: String,
 }
 
 /// Description of the physical properties of this manuscript.
