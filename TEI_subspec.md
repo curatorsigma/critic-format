@@ -24,7 +24,7 @@ Their filename SHOULD be `{manuscript name}`
 This TEI Header MUST be present in every individual TEI file.
 
 ### titleStmt
-The `title` inside `titleStmt` MUST be given as `{manuscript name} folio {folio number} {recto/verse}.`
+The `title` inside `titleStmt` MUST be given as `{manuscript name} folio {folio number} {recto/verse}.` when the manuscript has folios or `{manuscript name} page {page number}` if it does not (e.g. for scrolls).
 
 ### publicationStmt
 The `publicationStmt` MUST be given as `<p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>`.
@@ -39,6 +39,9 @@ The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined
     - `msIdentifier`, defining the physical manuscript reproduced:
         - `institution` and `msName` SHOULD be given if relevant
         - `collection` MAY be given if relevant
+        - `idNo` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
+- The `msDesc` SHOULD have
+    - `msName`
 - `physDesc` MAY be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
 
 # Representing the Text itself
