@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="TODO:schema-file" schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>
+			title
+                </title>
+            </titleStmt>
+            <publicationStmt>
+                <p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>
+            </publicationStmt>
+            <sourceDesc>
+            <msDesc>
+                <msIdentifier>
+                    <institution>
+		    	institution
+                    </institution>
+                    <collection>
+		    	collection
+                    </collection>
+		    <idNo>
+		    	idno
+		    </idNo>
+                    <msName>
+		    	msname
+                    </msName>
+                </msIdentifier>
+                <physDesc>
+                    <handDesc>
+                        <summary>
+                            There are two recognizable Hands: hand1 and hand2.
+                        </summary>
+                    </handDesc>
+                    <scriptDesc>
+                        <summary>Die Schrift in diesem Manuskript gibt es.</summary>
+                    </scriptDesc>
+                </physDesc>
+            </msDesc>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <text>
+        <body xml:lang="hbo-Hebr">
+		<div type="column" xml:lang="grc">
+			<div type="line">
+				<p>some text in a null-line in a grc column</p>
+				<p>some other text</p>
+				<p xml:lang="hbo-Hebr">some hbo-Hebr text</p>
+			</div>
+		</div>
+		<div type="column">
+			<div type="line">
+				<p>some hbo-Hebr text by default</p>
+				<p xml:lang="grc">some grc text</p>
+				<p xml:lang="grc">some other grc text</p>
+				<p xml:lang="grc">this line should become grc after normalization</p>
+			</div>
+			<div type="line">
+				<p>but because of these hbo-Hebr blocks, the columnb will stay hbo-Hebr</p>
+				<p>some hbo-Hebr text by default</p>
+				<p>some hbo-Hebr text by default</p>
+				<p>some hbo-Hebr text by default</p>
+			</div>
+		</div>
+        </body>
+    </text>
+</TEI>
+

@@ -37,12 +37,11 @@ The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined
 - The Body of each file MUST begin with a `msDesc`.
 - The `msDesc` MUST have
     - `msIdentifier`, defining the physical manuscript reproduced:
-        - `institution` and `msName` SHOULD be given if relevant
-        - `collection` MAY be given if relevant
+        - `msName` MUST be given
         - `idNo` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
-- The `msDesc` SHOULD have
-    - `msName`
-- `physDesc` MAY be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
+        - `institution` SHOULD be given if relevant
+        - `collection` MAY be given if relevant
+- `physDesc` MUST be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
 
 # Representing the Text itself
 As a general rule of thumb, our goal is to reproduce the physical text as closely as possible.
