@@ -2,3 +2,7 @@
 //! [critic](https://github.com/curatorsigma/critic).
 pub mod schema;
 pub use schema::*;
+
+pub mod normalized;
+
+pub mod denorm;

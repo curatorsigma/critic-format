@@ -137,7 +137,7 @@ pub struct Text {
 pub struct Body {
     /// the default language for text in this manuscript
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// The columns present in this text
     #[serde(rename = "div")]
     pub columns: Vec<Column>,
@@ -148,7 +148,7 @@ pub struct Body {
 pub struct Column {
     /// The default language of text in this column
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// the type is `column`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
     #[serde(rename = "@type")]
@@ -166,7 +166,7 @@ pub struct Column {
 pub struct Line {
     /// The default language of text in this line
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// the type is `line`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
     #[serde(rename = "@type")]
@@ -208,10 +208,10 @@ pub enum InlineBlock {
 pub struct TDOCWrapper {
     /// The language set on the `<p>` element
     #[serde(rename = "@lang")]
-    xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// The actual content we care about
     #[serde(rename = "$value")]
-    value: TextDamageOrChoice,
+    pub value: TextDamageOrChoice,
 }
 
 /// Anything that can be in a p in normal flowing text.
@@ -254,7 +254,7 @@ pub struct Anchor {
 pub struct Damage {
     /// The language set on the `<damage>` element
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// The certainty the transcriber assigns to the reconstruction of the damaged text
     #[serde(rename = "@cert")]
     pub cert: String,
@@ -273,11 +273,13 @@ pub struct Damage {
 pub struct Choice {
     /// The language set on the `<choice>` element
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// The surface form (the abbreviation) present in the manuscript
-    pub abbr: String,
+    #[serde(rename = "abbr")]
+    pub surface: String,
     /// The expanded form supplied by the transcriber
-    pub expan: String,
+    #[serde(rename = "expan")]
+    pub expansion: String,
 }
 
 /// An ancient correction.
@@ -285,7 +287,7 @@ pub struct Choice {
 pub struct App {
     /// The language set on the `<app>` element
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// A list of different readings. Each form this manuscript had at one point should get its own
     /// reading and be written out in its entirety here.
     pub rdg: Vec<Rdg>,
@@ -296,7 +298,7 @@ pub struct App {
 pub struct Rdg {
     /// the language set on the `<rdg>`
     #[serde(rename = "@lang")]
-    pub xml_lang: Option<String>,
+    pub lang: Option<String>,
     /// The scribal hand responsible for this reading
     ///
     /// The difrent hands should be explained in the [`HandDesc`] in the header.
@@ -355,9 +357,9 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Choice {
-                xml_lang: None,
-                abbr: "JHWH".to_string(),
-                expan: "Jahwe".to_string()
+                lang: None,
+                surface: "JHWH".to_string(),
+                expansion: "Jahwe".to_string()
             }
         );
     }
@@ -371,9 +373,9 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Choice {
-                xml_lang: None,
-                abbr: "JHWH".to_string(),
-                expan: "Jahwe".to_string()
+                lang: None,
+                surface: "JHWH".to_string(),
+                expansion: "Jahwe".to_string()
             }
         );
     }
@@ -387,9 +389,9 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Choice {
-                xml_lang: None,
-                abbr: "JHWH".to_string(),
-                expan: "Jahwe".to_string()
+                lang: None,
+                surface: "JHWH".to_string(),
+                expansion: "Jahwe".to_string()
             }
         );
     }
@@ -492,7 +494,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Rdg {
-                xml_lang: None,
+                lang: None,
                 hand: Some("handname".to_string()),
                 var_seq: 1,
                 text: "The content.".to_string(),
@@ -509,7 +511,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Rdg {
-                xml_lang: None,
+                lang: None,
                 hand: None,
                 var_seq: 1,
                 text: "The content.".to_string(),
@@ -542,16 +544,16 @@ mod test {
         assert_eq!(
             result.unwrap(),
             App {
-                xml_lang: None,
+                lang: None,
                 rdg: vec![
                     Rdg {
-                        xml_lang: None,
+                        lang: None,
                         hand: None,
                         var_seq: 1,
                         text: "Content1".to_string()
                     },
                     Rdg {
-                        xml_lang: None,
+                        lang: None,
                         hand: None,
                         var_seq: 2,
                         text: "Content2".to_string()
@@ -570,7 +572,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Damage {
-                xml_lang: None,
+                lang: None,
                 cert: "low".to_string(),
                 agent: "water".to_string(),
                 text: "damaged".to_string()
@@ -587,7 +589,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Damage {
-                xml_lang: Some("en".to_string()),
+                lang: Some("en".to_string()),
                 cert: "low".to_string(),
                 agent: "water".to_string(),
                 text: "damaged".to_string()
@@ -631,7 +633,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             TextDamageOrChoice::Damage(Damage {
-                xml_lang: None,
+                lang: None,
                 cert: "low".to_string(),
                 agent: "water".to_string(),
                 text: "damaged".to_string()
@@ -648,9 +650,9 @@ mod test {
         assert_eq!(
             result.unwrap(),
             TextDamageOrChoice::Choice(Choice {
-                xml_lang: None,
-                abbr: "JHWH".to_string(),
-                expan: "Jahwe".to_string()
+                lang: None,
+                surface: "JHWH".to_string(),
+                expansion: "Jahwe".to_string()
             })
         );
     }
@@ -673,7 +675,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
-                xml_lang: None,
+                lang: None,
                 value: TextDamageOrChoice::Text("text".to_string())
             })
         );
@@ -689,9 +691,9 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
-                xml_lang: None,
+                lang: None,
                 value: TextDamageOrChoice::Damage(Damage {
-                    xml_lang: None,
+                    lang: None,
                     cert: "low".to_string(),
                     agent: "water".to_string(),
                     text: "damaged".to_string()
@@ -709,11 +711,11 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
-                xml_lang: None,
+                lang: None,
                 value: TextDamageOrChoice::Choice(Choice {
-                    xml_lang: None,
-                    abbr: "JHWH".to_string(),
-                    expan: "Jahwe".to_string()
+                    lang: None,
+                    surface: "JHWH".to_string(),
+                    expansion: "Jahwe".to_string()
                 })
             })
         );
@@ -728,11 +730,11 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
-                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                lang: Some("hbo-Hebr-x-babli".to_string()),
                 value: TextDamageOrChoice::Choice(Choice {
-                    xml_lang: None,
-                    abbr: "JHWH".to_string(),
-                    expan: "Jahwe".to_string()
+                    lang: None,
+                    surface: "JHWH".to_string(),
+                    expansion: "Jahwe".to_string()
                 })
             })
         );
@@ -779,16 +781,16 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::App(App {
-                xml_lang: None,
+                lang: None,
                 rdg: vec![
                     Rdg {
-                        xml_lang: None,
+                        lang: None,
                         hand: None,
                         var_seq: 1,
                         text: "Content1".to_string()
                     },
                     Rdg {
-                        xml_lang: None,
+                        lang: None,
                         hand: None,
                         var_seq: 2,
                         text: "Content2".to_string()
@@ -808,7 +810,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Line {
-                xml_lang: None,
+                lang: None,
                 div_type: "line".to_string(),
                 n: Some(3),
                 blocks: vec![InlineBlock::Anchor(Anchor {
@@ -830,7 +832,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Line {
-                xml_lang: Some("grc".to_string()),
+                lang: Some("grc".to_string()),
                 div_type: "line".to_string(),
                 n: Some(3),
                 blocks: vec![InlineBlock::Anchor(Anchor {
@@ -874,7 +876,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Line {
-                xml_lang: None,
+                lang: None,
                 div_type: "line".to_string(),
                 n: None,
                 blocks: vec![
@@ -889,9 +891,9 @@ mod test {
                         anchor_type: "Masoretic".to_string(),
                     }),
                     InlineBlock::P(TDOCWrapper {
-                        xml_lang: None,
+                        lang: None,
                         value: TextDamageOrChoice::Damage(Damage {
-                            xml_lang: None,
+                            lang: None,
                             cert: "low".to_string(),
                             agent: "water".to_string(),
                             text: "damaged".to_string()
@@ -920,12 +922,12 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Column {
-                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                lang: Some("hbo-Hebr-x-babli".to_string()),
                 n: Some(1),
                 div_type: "column".to_string(),
                 lines: vec![
                     Line {
-                        xml_lang: Some("hbo-Hebr".to_string()),
+                        lang: Some("hbo-Hebr".to_string()),
                         div_type: "line".to_string(),
                         n: None,
                         blocks: vec![
@@ -940,9 +942,9 @@ mod test {
                                 anchor_type: "Masoretic".to_string(),
                             }),
                             InlineBlock::P(TDOCWrapper {
-                                xml_lang: None,
+                                lang: None,
                                 value: TextDamageOrChoice::Damage(Damage {
-                                    xml_lang: None,
+                                    lang: None,
                                     cert: "low".to_string(),
                                     agent: "water".to_string(),
                                     text: "damaged".to_string()
@@ -951,7 +953,7 @@ mod test {
                         ]
                     },
                     Line {
-                        xml_lang: None,
+                        lang: None,
                         div_type: "line".to_string(),
                         n: Some(3),
                         blocks: vec![InlineBlock::Anchor(Anchor {
@@ -986,11 +988,11 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Column {
-                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                lang: Some("hbo-Hebr-x-babli".to_string()),
                 n: Some(1),
                 div_type: "column".to_string(),
                 lines: vec![Line {
-                    xml_lang: None,
+                    lang: None,
                     div_type: "line".to_string(),
                     n: Some(3),
                     blocks: vec![InlineBlock::Anchor(Anchor {
@@ -1018,13 +1020,13 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Body {
-                xml_lang: Some("grc".to_string()),
+                lang: Some("grc".to_string()),
                 columns: vec![Column {
-                    xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                    lang: Some("hbo-Hebr-x-babli".to_string()),
                     n: Some(1),
                     div_type: "column".to_string(),
                     lines: vec![Line {
-                        xml_lang: None,
+                        lang: None,
                         div_type: "line".to_string(),
                         n: Some(3),
                         blocks: vec![InlineBlock::Anchor(Anchor {
@@ -1060,14 +1062,14 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Body {
-                xml_lang: None,
+                lang: None,
                 columns: vec![
                     Column {
-                        xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                        lang: Some("hbo-Hebr-x-babli".to_string()),
                         n: Some(1),
                         div_type: "column".to_string(),
                         lines: vec![Line {
-                            xml_lang: None,
+                            lang: None,
                             div_type: "line".to_string(),
                             n: Some(3),
                             blocks: vec![InlineBlock::Anchor(Anchor {
@@ -1077,15 +1079,15 @@ mod test {
                         }]
                     },
                     Column {
-                        xml_lang: Some("hbo-Hebr".to_string()),
+                        lang: Some("hbo-Hebr".to_string()),
                         n: Some(2),
                         div_type: "column".to_string(),
                         lines: vec![Line {
-                            xml_lang: None,
+                            lang: None,
                             div_type: "line".to_string(),
                             n: Some(1),
                             blocks: vec![InlineBlock::P(TDOCWrapper {
-                                xml_lang: None,
+                                lang: None,
                                 value: TextDamageOrChoice::Text("Some text here".to_string())
                             })]
                         }]
@@ -1121,14 +1123,14 @@ mod test {
             result.unwrap(),
             Text {
                 body: Body {
-                    xml_lang: Some("grc".to_string()),
+                    lang: Some("grc".to_string()),
                     columns: vec![
                         Column {
-                            xml_lang: Some("hbo-Hebr-x-babli".to_string()),
+                            lang: Some("hbo-Hebr-x-babli".to_string()),
                             n: Some(1),
                             div_type: "column".to_string(),
                             lines: vec![Line {
-                                xml_lang: None,
+                                lang: None,
                                 div_type: "line".to_string(),
                                 n: Some(3),
                                 blocks: vec![InlineBlock::Anchor(Anchor {
@@ -1138,15 +1140,15 @@ mod test {
                             }]
                         },
                         Column {
-                            xml_lang: Some("hbo-Hebr".to_string()),
+                            lang: Some("hbo-Hebr".to_string()),
                             n: Some(2),
                             div_type: "column".to_string(),
                             lines: vec![Line {
-                                xml_lang: None,
+                                lang: None,
                                 div_type: "line".to_string(),
                                 n: Some(1),
                                 blocks: vec![InlineBlock::P(TDOCWrapper {
-                                    xml_lang: None,
+                                    lang: None,
                                     value: TextDamageOrChoice::Text("Some text here".to_string())
                                 })]
                             }]
@@ -1200,19 +1202,19 @@ mod test {
         },
         text: Text {
             body: Body {
-                xml_lang: Some(
+                lang: Some(
                     "hbo-Hebr".to_string(),
                 ),
                 columns: vec![
                     Column {
-                        xml_lang: None,
+                        lang: None,
                         div_type: "column".to_string(),
                         n: Some(
                             1,
                         ),
                         lines: vec![
                             Line {
-                                xml_lang: None,
+                                lang: None,
                                 div_type: "line".to_string(),
                                 n: Some(
                                     2,
@@ -1220,7 +1222,7 @@ mod test {
                                 blocks: vec![
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Text(
                                                 "asdfa".to_string(),
                                             ),
@@ -1240,7 +1242,7 @@ mod test {
                                     ),
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Text(
                                                 "sdfsa".to_string(),
                                             ),
@@ -1249,7 +1251,7 @@ mod test {
                                 ],
                             },
                             Line {
-                                xml_lang: Some(
+                                lang: Some(
                                     "hbo-Hebr-x-babli".to_string(),
                                 ),
                                 div_type: "line".to_string(),
@@ -1257,7 +1259,7 @@ mod test {
                                 blocks: vec![
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Text(
                                                 "Some stuff with babylonian Niqud".to_string(),
                                             ),
@@ -1268,12 +1270,12 @@ mod test {
                         ],
                     },
                     Column {
-                        xml_lang: None,
+                        lang: None,
                         div_type: "column".to_string(),
                         n: None,
                         lines: vec![
                             Line {
-                                xml_lang: None,
+                                lang: None,
                                 div_type: "line".to_string(),
                                 n: Some(
                                     2,
@@ -1281,7 +1283,7 @@ mod test {
                                 blocks: vec![
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Text(
                                                 "Hier ein an".to_string(),
                                             ),
@@ -1289,10 +1291,10 @@ mod test {
                                     ),
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Damage(
                                                 Damage {
-                                                    xml_lang: None,
+                                                    lang: None,
                                                     cert: "high".to_string(),
                                                     agent: "water".to_string(),
                                                     text: "d".to_string(),
@@ -1302,7 +1304,7 @@ mod test {
                                     ),
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Text(
                                                 "erer, wo der Buchstabe nur etwas kaputt ist.".to_string(),
                                             ),
@@ -1320,22 +1322,22 @@ mod test {
                                     ),
                                     InlineBlock::P(
                                         TDOCWrapper {
-                                            xml_lang: None,
+                                            lang: None,
                                             value: TextDamageOrChoice::Choice(
                                                 Choice {
-                                                    xml_lang: None,
-                                                    abbr: "JHWH".to_string(),
-                                                    expan: "Jahwe".to_string(),
+                                                    lang: None,
+                                                    surface: "JHWH".to_string(),
+                                                    expansion: "Jahwe".to_string(),
                                                 },
                                             ),
                                         },
                                     ),
                                     InlineBlock::App(
                                         App {
-                                            xml_lang: None,
+                                            lang: None,
                                             rdg: vec![
                                                 Rdg {
-                                                    xml_lang: None,
+                                                    lang: None,
                                                     hand: Some(
                                                         "hand1".to_string(),
                                                     ),
@@ -1343,7 +1345,7 @@ mod test {
                                                     text: "sam stuff 1".to_string(),
                                                 },
                                                 Rdg {
-                                                    xml_lang: None,
+                                                    lang: None,
                                                     hand: Some(
                                                         "hand2".to_string(),
                                                     ),
