@@ -162,6 +162,8 @@ pub enum InlineBlock {
 /// Intermediate Wrapper struct required for XML (de-)serialization.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct TDOCWrapper {
+    #[serde(rename = "@lang")]
+    xml_lang: Option<String>,
     #[serde(rename = "$value")]
     value: TextDamageOrChoice,
 }
@@ -579,6 +581,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
+                xml_lang: None,
                 value: TextDamageOrChoice::Text("text".to_string())
             })
         );
@@ -594,6 +597,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
+                xml_lang: None,
                 value: TextDamageOrChoice::Damage(Damage {
                     xml_lang: None,
                     cert: "low".to_string(),
@@ -613,6 +617,26 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::P(TDOCWrapper {
+                xml_lang: None,
+                value: TextDamageOrChoice::Choice(Choice {
+                    xml_lang: None,
+                    abbr: "JHWH".to_string(),
+                    expan: "Jahwe".to_string()
+                })
+            })
+        );
+    }
+
+    /// InlineBlock - p - choice
+    #[test]
+    fn inline_block_p_w_lang() {
+        let xml = r#"<p xml:lang="hbo-Hebr-x-babli"><choice><abbr>JHWH</abbr><expan>Jahwe</expan></choice></p>"#;
+        let result: Result<InlineBlock, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            InlineBlock::P(TDOCWrapper {
+                xml_lang: Some("hbo-Hebr-x-babli".to_string()),
                 value: TextDamageOrChoice::Choice(Choice {
                     xml_lang: None,
                     abbr: "JHWH".to_string(),
@@ -715,6 +739,7 @@ mod test {
                         anchor_type: "Masoretic".to_string(),
                     }),
                     InlineBlock::P(TDOCWrapper {
+                        xml_lang: None,
                         value: TextDamageOrChoice::Damage(Damage {
                             xml_lang: None,
                             cert: "low".to_string(),
