@@ -126,14 +126,20 @@ pub struct Column {
     pub div: Vec<Line>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// A complete line in the manuscript.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Line {
+    /// The default language of text in this line
     #[serde(rename = "@lang")]
     pub xml_lang: Option<String>,
+    /// the type is `line`
+    /// This is only enforced on the normalized type, not while (de-)serializing xml
     #[serde(rename = "@type")]
     pub div_type: String,
+    /// the linenumber.
     #[serde(rename = "@n")]
     pub n: Option<i32>,
+    /// The actual text elements contained in this line
     #[serde(rename = "$value")]
     pub blocks: Vec<InlineBlock>,
 }
@@ -645,6 +651,79 @@ mod test {
                 xml_id: "A_V_MT_1Kg-3-4".to_string(),
                 anchor_type: "Masoretic".to_string(),
             })
+        );
+    }
+
+    /// Line - base case
+    #[test]
+    fn line() {
+        let xml =
+            r#"<div type="line" n="3"><anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/></div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Line {
+                xml_lang: None,
+                div_type: "line".to_string(),
+                n: Some(3),
+                blocks: vec![InlineBlock::Anchor(Anchor {
+                    xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                    anchor_type: "Masoretic".to_string(),
+                })]
+            }
+        );
+    }
+
+    /// Line - direct text not allowed
+    #[test]
+    fn line_direct_text() {
+        let xml = r#"<div type="line" n="3">text here must be in p</div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_err());
+    }
+
+    /// Line - type must be given
+    #[test]
+    fn line_no_type() {
+        let xml = r#"<div n="3"><p>text is allowed because it is in a </p></div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_err());
+    }
+
+    /// Line - several blocks and no n
+    #[test]
+    fn line_multiblock_no_n() {
+        let xml = r#"<div type="line"><gap reason="lost" n="2" unit="column"/><anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/><p><damage cert="low" agent="water">damaged</damage></p></div>"#;
+        let result: Result<Line, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Line {
+                xml_lang: None,
+                div_type: "line".to_string(),
+                n: None,
+                blocks: vec![
+                    InlineBlock::Gap(Gap {
+                        reason: "lost".to_string(),
+                        n: 2,
+                        unit: ExtentUnit::Column,
+                        cert: None,
+                    }),
+                    InlineBlock::Anchor(Anchor {
+                        xml_id: "A_V_MT_1Kg-3-4".to_string(),
+                        anchor_type: "Masoretic".to_string(),
+                    }),
+                    InlineBlock::P(TDOCWrapper {
+                        value: TextDamageOrChoice::Damage(Damage {
+                            xml_lang: None,
+                            cert: "low".to_string(),
+                            agent: "water".to_string(),
+                            text: "damaged".to_string()
+                        })
+                    })
+                ]
+            }
         );
     }
 }
