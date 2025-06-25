@@ -34,7 +34,9 @@ impl Tei {
     pub fn trim(self) -> Self {
         Self {
             xmlns: self.xmlns,
-            tei_header: TeiHeader { file_desc: self.tei_header.file_desc.trim() },
+            tei_header: TeiHeader {
+                file_desc: self.tei_header.file_desc.trim(),
+            },
             text: self.text.trim(),
         }
     }
@@ -64,9 +66,18 @@ pub struct FileDesc {
 impl FileDesc {
     pub fn trim(self) -> Self {
         Self {
-            title_stmt: TitleStmt{ title: trim_if_required(self.title_stmt.title) },
-            publication_stmt: PublicationStmt { p: trim_if_required(self.publication_stmt.p) },
-            source_desc: SourceDesc { ms_desc: MsDesc { ms_identifier: self.source_desc.ms_desc.ms_identifier.trim(), phys_desc: self.source_desc.ms_desc.phys_desc.trim() } }
+            title_stmt: TitleStmt {
+                title: trim_if_required(self.title_stmt.title),
+            },
+            publication_stmt: PublicationStmt {
+                p: trim_if_required(self.publication_stmt.p),
+            },
+            source_desc: SourceDesc {
+                ms_desc: MsDesc {
+                    ms_identifier: self.source_desc.ms_desc.ms_identifier.trim(),
+                    phys_desc: self.source_desc.ms_desc.phys_desc.trim(),
+                },
+            },
         }
     }
 }
@@ -109,7 +120,10 @@ pub struct MsDesc {
 }
 impl MsDesc {
     pub fn trim(self) -> Self {
-        Self { ms_identifier: self.ms_identifier.trim(), phys_desc: self.phys_desc.trim() }
+        Self {
+            ms_identifier: self.ms_identifier.trim(),
+            phys_desc: self.phys_desc.trim(),
+        }
     }
 }
 
@@ -128,7 +142,12 @@ pub struct MsIdentifier {
 }
 impl MsIdentifier {
     pub fn trim(self) -> Self {
-        Self { institution: self.institution.map(trim_if_required), collection: self.collection.map(trim_if_required), page_nr: trim_if_required(self.page_nr), ms_name: trim_if_required(self.ms_name) }
+        Self {
+            institution: self.institution.map(trim_if_required),
+            collection: self.collection.map(trim_if_required),
+            page_nr: trim_if_required(self.page_nr),
+            ms_name: trim_if_required(self.ms_name),
+        }
     }
 }
 
@@ -144,7 +163,14 @@ pub struct PhysDesc {
 }
 impl PhysDesc {
     pub fn trim(self) -> Self {
-        Self { hand_desc: HandDesc { summary: trim_if_required(self.hand_desc.summary) }, script_desc: ScriptDesc { summary: trim_if_required(self.script_desc.summary)} }
+        Self {
+            hand_desc: HandDesc {
+                summary: trim_if_required(self.hand_desc.summary),
+            },
+            script_desc: ScriptDesc {
+                summary: trim_if_required(self.script_desc.summary),
+            },
+        }
     }
 }
 
@@ -179,7 +205,9 @@ pub struct Text {
 impl Text {
     /// Trim whitespace from all text fields
     pub fn trim(self) -> Self {
-        Self { body: self.body.trim() }
+        Self {
+            body: self.body.trim(),
+        }
     }
 }
 
@@ -196,7 +224,10 @@ pub struct Body {
 impl Body {
     /// Trim whitespace from all text fields
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, columns: self.columns.into_iter().map(|x| x.trim()).collect() }
+        Self {
+            lang: self.lang,
+            columns: self.columns.into_iter().map(|x| x.trim()).collect(),
+        }
     }
 }
 
@@ -220,7 +251,12 @@ pub struct Column {
 impl Column {
     /// Trim whitespace from all text fields
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, div_type: self.div_type, n: self.n, lines: self.lines.into_iter().map(|x| x.trim()).collect() }
+        Self {
+            lang: self.lang,
+            div_type: self.div_type,
+            n: self.n,
+            lines: self.lines.into_iter().map(|x| x.trim()).collect(),
+        }
     }
 }
 
@@ -244,7 +280,12 @@ pub struct Line {
 impl Line {
     /// Trim whitespace from all text fields
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, div_type: self.div_type, n: self.n, blocks: self.blocks.into_iter().map(|x| x.trim()).collect() }
+        Self {
+            lang: self.lang,
+            div_type: self.div_type,
+            n: self.n,
+            blocks: self.blocks.into_iter().map(|x| x.trim()).collect(),
+        }
     }
 }
 
@@ -275,9 +316,7 @@ impl InlineBlock {
     /// Trim whitespace from all text fields
     pub fn trim(self) -> Self {
         match self {
-            Self::Gap(_) | Self::Anchor(_) => {
-                self
-            }
+            Self::Gap(_) | Self::Anchor(_) => self,
             Self::P(x) => Self::P(x.trim()),
             Self::App(x) => Self::App(x.trim()),
         }
@@ -296,7 +335,10 @@ pub struct TDOCWrapper {
 }
 impl TDOCWrapper {
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, value: self.value.trim() }
+        Self {
+            lang: self.lang,
+            value: self.value.trim(),
+        }
     }
 }
 
@@ -319,15 +361,12 @@ pub enum TextDamageOrChoice {
 impl TextDamageOrChoice {
     pub fn trim(self) -> Self {
         match self {
-            Self::Text(x) => {
-                Self::Text(trim_if_required(x))
-            }
+            Self::Text(x) => Self::Text(trim_if_required(x)),
             Self::Damage(x) => Self::Damage(x.trim()),
             Self::Choice(x) => Self::Choice(x.trim()),
         }
     }
 }
-
 
 /// The beginning of a verse.
 ///
@@ -365,7 +404,12 @@ pub struct Damage {
 }
 impl Damage {
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, cert: self.cert, agent: self.agent, text: trim_if_required(self.text) }
+        Self {
+            lang: self.lang,
+            cert: self.cert,
+            agent: self.agent,
+            text: trim_if_required(self.text),
+        }
     }
 }
 
@@ -386,7 +430,11 @@ pub struct Choice {
 }
 impl Choice {
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, surface: trim_if_required(self.surface), expansion: trim_if_required(self.expansion) }
+        Self {
+            lang: self.lang,
+            surface: trim_if_required(self.surface),
+            expansion: trim_if_required(self.expansion),
+        }
     }
 }
 
@@ -402,7 +450,10 @@ pub struct App {
 }
 impl App {
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, rdg: self.rdg.into_iter().map(|x| x.trim()).collect() }
+        Self {
+            lang: self.lang,
+            rdg: self.rdg.into_iter().map(|x| x.trim()).collect(),
+        }
     }
 }
 
@@ -426,10 +477,14 @@ pub struct Rdg {
 }
 impl Rdg {
     pub fn trim(self) -> Self {
-        Self { lang: self.lang, hand: self.hand, var_seq: self.var_seq, text: trim_if_required(self.text) }
+        Self {
+            lang: self.lang,
+            hand: self.hand,
+            var_seq: self.var_seq,
+            text: trim_if_required(self.text),
+        }
     }
 }
-
 
 /// A lacuna.
 ///
@@ -1489,9 +1544,17 @@ mod test {
     // https://github.com/tafia/quick-xml/issues/841
     #[test]
     fn lang_attribute_serialized_with_xml() {
-        let dmg = Damage {lang: Some("language".to_string()), cert: "high".to_string(), agent: "agent".to_string(), text: "text".to_string()};
+        let dmg = Damage {
+            lang: Some("language".to_string()),
+            cert: "high".to_string(),
+            agent: "agent".to_string(),
+            text: "text".to_string(),
+        };
         let sr = quick_xml::se::to_string(&dmg);
         dbg!(&sr);
-        assert_eq!(sr.unwrap(), r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string());
+        assert_eq!(
+            sr.unwrap(),
+            r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string()
+        );
     }
 }

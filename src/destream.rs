@@ -58,7 +58,7 @@ impl TryFrom<normalized::Manuscript> for streamed::Manuscript {
 }
 
 /// This does two main things:
-/// - unroll the hierarchy into a stream, inserting line and page breaks
+/// - unroll the hierarchy into a stream, inserting line and column breaks
 /// - Associate the correct language to every Block
 impl TryFrom<normalized::Text> for Vec<streamed::Block> {
     type Error = StreamError;
@@ -73,9 +73,11 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
         );
 
         let mut current_language: String;
+        // the index of the column in logical ordering (i.e. getting larger when passing a
+        // column-spaning lacuna)
         let mut col_idx = 1;
-
-        'col: for col in value.columns {
+        let num_of_cols = value.columns.len();
+        'col: for (defined_c_idx, col) in value.columns.into_iter().enumerate() {
             if col.n != col_idx {
                 return Err(StreamError::ColumnIndexInconsistent(col_idx, col.n));
             }
@@ -85,8 +87,9 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
                 value.lang.clone()
             };
             let column_lang = current_language;
+            let num_of_lines = col.lines.len();
             let mut line_idx = 1;
-            'line: for line in col.lines {
+            'line: for (defined_l_idx, line) in col.lines.into_iter().enumerate() {
                 if line.n != line_idx {
                     return Err(StreamError::LineIndexInconsistent(line_idx, line.n));
                 }
@@ -140,23 +143,20 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
                     }
                     res.push(streamed_block);
                 }
-                // the line is now ended - insert a line break
-                res.push(streamed::Block::Break(streamed::BreakType::Line));
+                // the line is now ended - insert a line break except for the last line
+                if (defined_l_idx as usize) + 1 < num_of_lines {
+                    res.push(streamed::Block::Break(streamed::BreakType::Line));
+                }
                 line_idx += 1;
             }
-            // the column is now ended - insert a column break
-            // if the last block was a linebreak, turn it into a column break instead
-            let last_element = res.last_mut();
-            match last_element {
-                Some(x @ streamed::Block::Break(streamed::BreakType::Line)) => {
-                    *x = streamed::Block::Break(streamed::BreakType::Column);
-                }
-                _ => {
-                    res.push(streamed::Block::Break(streamed::BreakType::Column));
-                }
+            // the column is now ended - insert a column break except for the last column
+            if (defined_c_idx as usize) + 1 < num_of_cols {
+                res.push(streamed::Block::Break(streamed::BreakType::Column));
             }
             col_idx += 1;
         }
+
+        // The last element is always a columnbreak, which we drop again
 
         Ok(res)
     }
@@ -639,7 +639,6 @@ mod test {
                     lang: "hbo-Hebr".to_string(),
                     content: "text".to_string(),
                 }),
-                streamed::Block::Break(streamed::BreakType::Column),
             ],
         };
         assert_eq!(streamed_res.unwrap(), expected);
@@ -655,7 +654,7 @@ mod test {
         let xml = include_str!("../examples/02_lines_consistent.xml");
         let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
         assert!(xml_res.is_ok());
-        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().trim().try_into();
         assert!(norm_res.is_ok());
         let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
         assert!(streamed_res.is_ok());
@@ -707,13 +706,10 @@ mod test {
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
-            vec![
-                streamed::Block::Text(streamed::Paragraph {
-                    lang: "hbo-Hebr".to_string(),
-                    content: "text in hbo-Hebr".to_string()
-                }),
-                streamed::Block::Break(streamed::BreakType::Column),
-            ]
+            vec![streamed::Block::Text(streamed::Paragraph {
+                lang: "hbo-Hebr".to_string(),
+                content: "text in hbo-Hebr".to_string()
+            }),]
         );
     }
 
@@ -737,13 +733,10 @@ mod test {
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
-            vec![
-                streamed::Block::Text(streamed::Paragraph {
-                    lang: "grc".to_string(),
-                    content: "text".to_string()
-                }),
-                streamed::Block::Break(streamed::BreakType::Column),
-            ]
+            vec![streamed::Block::Text(streamed::Paragraph {
+                lang: "grc".to_string(),
+                content: "text".to_string()
+            }),]
         );
     }
 
@@ -800,7 +793,6 @@ mod test {
                     lang: "hbo-Hebr".to_string(),
                     content: "text".to_string()
                 }),
-                streamed::Block::Break(streamed::BreakType::Column),
             ]
         );
         let destreamed: normalized::Text = streamed.try_into().unwrap();
@@ -912,7 +904,6 @@ mod test {
                     lang: "grc".to_string(),
                     content: "text".to_string()
                 }),
-                streamed::Block::Break(streamed::BreakType::Column),
             ]
         );
         let destreamed: normalized::Text = streamed.try_into().unwrap();
@@ -964,5 +955,31 @@ mod test {
             ],
         };
         assert_eq!(expected, destreamed);
+    }
+
+    /// When streaming, there should be no final line and column breaks
+    #[test]
+    fn stream_final_breaks() {
+        let normalized: normalized::Text = normalized::Text {
+            lang: "lang".to_string(),
+            columns: vec![normalized::Column {
+                lang: None,
+                n: 1,
+                lines: vec![normalized::Line {
+                    lang: None,
+                    n: 1,
+                    blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                        lang: None,
+                        content: "content".to_string(),
+                    })],
+                }],
+            }],
+        };
+        let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
+        let expected = vec![streamed::Block::Text(streamed::Paragraph {
+            lang: "lang".to_string(),
+            content: "content".to_string(),
+        })];
+        assert_eq!(streamed, expected);
     }
 }
