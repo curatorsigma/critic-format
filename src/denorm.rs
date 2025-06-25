@@ -80,9 +80,10 @@ impl TryFrom<schema::Tei> for normalized::Manuscript {
     type Error = NormalizationError;
 
     fn try_from(value: schema::Tei) -> Result<Self, Self::Error> {
+        let trimmed = value.trim();
         Ok(Self {
-            meta: value.tei_header.try_into()?,
-            text: value.text.try_into()?,
+            meta: trimmed.tei_header.try_into()?,
+            text: trimmed.text.try_into()?,
         })
     }
 }
@@ -430,12 +431,16 @@ fn denorm_versions(
 
 #[cfg(test)]
 mod test {
+    /// test the entire normalization procedure - there is not a lot going on here that is not
+    /// trivial, so there are few test here
+    ///
+    /// This also tests automatic trimming
     #[test]
     fn complete_normalization() {
         let xml = include_str!("../examples/01_all_elements.xml");
         let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
         assert!(xml_res.is_ok());
-        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().trim().try_into();
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
 
         assert!(norm_res.is_ok());
         let expected = crate::normalized::Manuscript {
