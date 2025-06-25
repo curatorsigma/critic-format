@@ -10,5 +10,6 @@ categories = ["encoding"]
 authors = ["Jonathan Schleucher"]
 
 [dependencies]
-quick-xml = { version = "0.37.2", features = ["serialize"] }
+# quick-xml = { version = "0.37.5", features = ["serialize"] }
+quick-xml = { path="../My-Forked-Quick-Xml/" , features = ["serialize"] }
 serde = { version = "1.0.217", features = ["derive"] }

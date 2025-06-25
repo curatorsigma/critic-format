@@ -435,7 +435,7 @@ mod test {
         let xml = include_str!("../examples/01_all_elements.xml");
         let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
         assert!(xml_res.is_ok());
-        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().trim().try_into();
 
         assert!(norm_res.is_ok());
         let expected = crate::normalized::Manuscript {

@@ -2,6 +2,15 @@
 
 use serde::{Deserialize, Serialize};
 
+fn trim_if_required(s: String) -> String {
+    let trimmed = s.trim();
+    if trimmed.len() != s.len() {
+        trimmed.to_string()
+    } else {
+        s
+    }
+}
+
 /// The complete TEI document.
 ///
 /// Note that two additional lines are not included here but should be present and output to file:
@@ -19,6 +28,16 @@ pub struct Tei {
     pub tei_header: TeiHeader,
     /// the actual text
     pub text: Text,
+}
+impl Tei {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        Self {
+            xmlns: self.xmlns,
+            tei_header: TeiHeader { file_desc: self.tei_header.file_desc.trim() },
+            text: self.text.trim(),
+        }
+    }
 }
 
 /// TEI Header with metainformation about a folio.
@@ -41,6 +60,15 @@ pub struct FileDesc {
     /// Description of the transcribed manuscript
     #[serde(rename = "sourceDesc")]
     pub source_desc: SourceDesc,
+}
+impl FileDesc {
+    pub fn trim(self) -> Self {
+        Self {
+            title_stmt: TitleStmt{ title: trim_if_required(self.title_stmt.title) },
+            publication_stmt: PublicationStmt { p: trim_if_required(self.publication_stmt.p) },
+            source_desc: SourceDesc { ms_desc: MsDesc { ms_identifier: self.source_desc.ms_desc.ms_identifier.trim(), phys_desc: self.source_desc.ms_desc.phys_desc.trim() } }
+        }
+    }
 }
 
 /// Title of this manuscript.
@@ -79,6 +107,11 @@ pub struct MsDesc {
     #[serde(rename = "physDesc")]
     pub phys_desc: PhysDesc,
 }
+impl MsDesc {
+    pub fn trim(self) -> Self {
+        Self { ms_identifier: self.ms_identifier.trim(), phys_desc: self.phys_desc.trim() }
+    }
+}
 
 /// Information that can identify this manuscript.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -93,6 +126,11 @@ pub struct MsIdentifier {
     #[serde(rename = "msName")]
     pub ms_name: String,
 }
+impl MsIdentifier {
+    pub fn trim(self) -> Self {
+        Self { institution: self.institution.map(trim_if_required), collection: self.collection.map(trim_if_required), page_nr: trim_if_required(self.page_nr), ms_name: trim_if_required(self.ms_name) }
+    }
+}
 
 /// Description of the physical properties of this manuscript.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -103,6 +141,11 @@ pub struct PhysDesc {
     /// Description of the scripts present in this manuscript
     #[serde(rename = "scriptDesc")]
     pub script_desc: ScriptDesc,
+}
+impl PhysDesc {
+    pub fn trim(self) -> Self {
+        Self { hand_desc: HandDesc { summary: trim_if_required(self.hand_desc.summary) }, script_desc: ScriptDesc { summary: trim_if_required(self.script_desc.summary)} }
+    }
 }
 
 /// Description of the scribal hands present in this manuscript.
@@ -133,23 +176,35 @@ pub struct Text {
     /// the actual body
     pub body: Body,
 }
+impl Text {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        Self { body: self.body.trim() }
+    }
+}
 
 /// The entire transcribed text body
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Body {
     /// the default language for text in this manuscript
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// The columns present in this text
     #[serde(rename = "div")]
     pub columns: Vec<Column>,
+}
+impl Body {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, columns: self.columns.into_iter().map(|x| x.trim()).collect() }
+    }
 }
 
 /// A complete column in the manuscript.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Column {
     /// The default language of text in this column
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// the type is `column`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
@@ -162,12 +217,18 @@ pub struct Column {
     #[serde(rename = "div")]
     pub lines: Vec<Line>,
 }
+impl Column {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, div_type: self.div_type, n: self.n, lines: self.lines.into_iter().map(|x| x.trim()).collect() }
+    }
+}
 
 /// A complete line in the manuscript.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Line {
     /// The default language of text in this line
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// the type is `line`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
@@ -179,6 +240,12 @@ pub struct Line {
     /// The actual text elements contained in this line
     #[serde(rename = "$value")]
     pub blocks: Vec<InlineBlock>,
+}
+impl Line {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, div_type: self.div_type, n: self.n, blocks: self.blocks.into_iter().map(|x| x.trim()).collect() }
+    }
 }
 
 /// A block of text or marked up text.
@@ -204,16 +271,33 @@ pub enum InlineBlock {
     #[serde(rename = "app")]
     App(App),
 }
+impl InlineBlock {
+    /// Trim whitespace from all text fields
+    pub fn trim(self) -> Self {
+        match self {
+            Self::Gap(_) | Self::Anchor(_) => {
+                self
+            }
+            Self::P(x) => Self::P(x.trim()),
+            Self::App(x) => Self::App(x.trim()),
+        }
+    }
+}
 
 /// Intermediate Wrapper struct required for XML (de-)serialization.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TDOCWrapper {
     /// The language set on the `<p>` element
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// The actual content we care about
     #[serde(rename = "$value")]
     pub value: TextDamageOrChoice,
+}
+impl TDOCWrapper {
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, value: self.value.trim() }
+    }
 }
 
 /// Anything that can be in a p in normal flowing text.
@@ -232,6 +316,18 @@ pub enum TextDamageOrChoice {
     #[serde(rename = "choice")]
     Choice(Choice),
 }
+impl TextDamageOrChoice {
+    pub fn trim(self) -> Self {
+        match self {
+            Self::Text(x) => {
+                Self::Text(trim_if_required(x))
+            }
+            Self::Damage(x) => Self::Damage(x.trim()),
+            Self::Choice(x) => Self::Choice(x.trim()),
+        }
+    }
+}
+
 
 /// The beginning of a verse.
 ///
@@ -242,7 +338,7 @@ pub struct Anchor {
     /// The ID of this verse.
     ///
     /// MUST be `A_V_{versification-theme-shorthand}_{verse-number}`
-    #[serde(rename = "@id")]
+    #[serde(rename = "@xml:id")]
     pub xml_id: String,
     /// MUST be `{versification-theme-long-form}`
     #[serde(rename = "@type")]
@@ -255,7 +351,7 @@ pub struct Anchor {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Damage {
     /// The language set on the `<damage>` element
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// The certainty the transcriber assigns to the reconstruction of the damaged text
     #[serde(rename = "@cert")]
@@ -267,6 +363,11 @@ pub struct Damage {
     #[serde(rename = "$text")]
     pub text: String,
 }
+impl Damage {
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, cert: self.cert, agent: self.agent, text: trim_if_required(self.text) }
+    }
+}
 
 /// An expanded Abbreviation.
 ///
@@ -274,7 +375,7 @@ pub struct Damage {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Choice {
     /// The language set on the `<choice>` element
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// The surface form (the abbreviation) present in the manuscript
     #[serde(rename = "abbr")]
@@ -283,23 +384,33 @@ pub struct Choice {
     #[serde(rename = "expan")]
     pub expansion: String,
 }
+impl Choice {
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, surface: trim_if_required(self.surface), expansion: trim_if_required(self.expansion) }
+    }
+}
 
 /// An ancient correction.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct App {
     /// The language set on the `<app>` element
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// A list of different readings. Each form this manuscript had at one point should get its own
     /// reading and be written out in its entirety here.
     pub rdg: Vec<Rdg>,
+}
+impl App {
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, rdg: self.rdg.into_iter().map(|x| x.trim()).collect() }
+    }
 }
 
 /// An individual reading (version) inside a correction.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Rdg {
     /// the language set on the `<rdg>`
-    #[serde(rename = "@lang")]
+    #[serde(rename = "@xml:lang")]
     pub lang: Option<String>,
     /// The scribal hand responsible for this reading
     ///
@@ -313,6 +424,12 @@ pub struct Rdg {
     #[serde(rename = "$text")]
     pub text: String,
 }
+impl Rdg {
+    pub fn trim(self) -> Self {
+        Self { lang: self.lang, hand: self.hand, var_seq: self.var_seq, text: trim_if_required(self.text) }
+    }
+}
+
 
 /// A lacuna.
 ///
@@ -1062,7 +1179,7 @@ mod test {
         let result: Result<Body, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
         assert_eq!(
-            result.unwrap(),
+            result.unwrap().trim(),
             Body {
                 lang: None,
                 columns: vec![
@@ -1122,7 +1239,7 @@ mod test {
         let result: Result<Text, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
         assert_eq!(
-            result.unwrap(),
+            result.unwrap().trim(),
             Text {
                 body: Body {
                     lang: Some("grc".to_string()),
@@ -1365,15 +1482,16 @@ mod test {
             },
         },
     };
-        assert_eq!(result.unwrap(), tei);
+        let deserialized_trimmed = result.unwrap().trim();
+        assert_eq!(deserialized_trimmed, tei);
     }
 
     // https://github.com/tafia/quick-xml/issues/841
-    // #[test]
-    // fn lang_attribute_serialized_with_xml() {
-    //     let dmg = Damage {lang: Some("language".to_string()), cert: "high".to_string(), agent: "agent".to_string(), text: "text".to_string()};
-    //     let sr = quick_xml::se::to_string(&dmg);
-    //     dbg!(&sr);
-    //     assert_eq!(sr.unwrap(), r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string());
-    // }
+    #[test]
+    fn lang_attribute_serialized_with_xml() {
+        let dmg = Damage {lang: Some("language".to_string()), cert: "high".to_string(), agent: "agent".to_string(), text: "text".to_string()};
+        let sr = quick_xml::se::to_string(&dmg);
+        dbg!(&sr);
+        assert_eq!(sr.unwrap(), r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string());
+    }
 }
