@@ -167,6 +167,8 @@ This occurs where characters are present, but physically damaged.
 The damaged characters MUST be enclosed in `<p><damaged>`.
 - `@agent` SHOULD be given
     - good examples of reasons include: `smeared`, `burned`, `water`
+    - the `@agent` MAY NOT contain whitespace
+    - If a space would be desired to split words (e.g. `smeared diacritica`), `-` SHOULD be used instead (`smeared-diacritica`)
 - `@cert` SHOULD be given
 
 ## Lacunous Elements {#lacuna}
