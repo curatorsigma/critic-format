@@ -66,6 +66,26 @@ impl Default for BreakType {
         Self::Line
     }
 }
+/// Convert Line => Line, Column => Column and reject everything else (case sensitive)
+impl std::str::FromStr  for BreakType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Line" => Ok(Self::Line),
+            "Column" => Ok(Self::Column),
+            _ => Err(()),
+        }
+    }
+}
+impl BreakType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Line => "Line",
+            Self::Column => "Column",
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {

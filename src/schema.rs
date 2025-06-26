@@ -215,7 +215,7 @@ impl Text {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Body {
     /// the default language for text in this manuscript
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The columns present in this text
     #[serde(rename = "div")]
@@ -235,7 +235,7 @@ impl Body {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Column {
     /// The default language of text in this column
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// the type is `column`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
@@ -264,7 +264,7 @@ impl Column {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Line {
     /// The default language of text in this line
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// the type is `line`
     /// This is only enforced on the normalized type, not while (de-)serializing xml
@@ -327,7 +327,7 @@ impl InlineBlock {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TDOCWrapper {
     /// The language set on the `<p>` element
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The actual content we care about
     #[serde(rename = "$value")]
@@ -390,7 +390,7 @@ pub struct Anchor {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Damage {
     /// The language set on the `<damage>` element
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The certainty the transcriber assigns to the reconstruction of the damaged text
     #[serde(rename = "@cert")]
@@ -461,12 +461,12 @@ impl App {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Rdg {
     /// the language set on the `<rdg>`
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The scribal hand responsible for this reading
     ///
-    /// The difrent hands should be explained in the [`HandDesc`] in the header.
-    #[serde(rename = "@hand")]
+    /// The different hands should be explained in the [`HandDesc`] in the header.
+    #[serde(rename = "@hand", skip_serializing_if = "Option::is_none")]
     pub hand: Option<String>,
     /// The number of this reading (i.e. 1 for the first version, 2 for the second version etc.)
     #[serde(rename = "@varSeq")]
@@ -501,7 +501,7 @@ pub struct Gap {
     #[serde(rename = "@n")]
     pub n: i32,
     /// The certainty for the approximate extent
-    #[serde(rename = "@cert")]
+    #[serde(rename = "@cert", skip_serializing_if = "Option::is_none")]
     pub cert: Option<String>,
 }
 
@@ -1556,5 +1556,32 @@ mod test {
             sr.unwrap(),
             r#"<Damage xml:lang="language" cert="high" agent="agent">text</Damage>"#.to_string()
         );
+    }
+
+    /// None Language should roundtrip to None
+    #[test]
+    fn none_language_ser_deser() {
+        let block = Damage { lang: None, cert: "high".to_string(), agent: "agent".to_string(), text: "text".to_string() };
+        let sr = quick_xml::se::to_string(&block).unwrap();
+        let ds: Damage = quick_xml::de::from_str(&sr).unwrap();
+        assert_eq!(ds, block);
+    }
+
+    /// None cert should roundtrip to None
+    #[test]
+    fn none_cert_ser_deser() {
+        let block = Gap { reason: "reason".to_string(), unit: ExtentUnit::Line, n: 1, cert: None, };
+        let sr = quick_xml::se::to_string(&block).unwrap();
+        let ds: Gap = quick_xml::de::from_str(&sr).unwrap();
+        assert_eq!(ds, block);
+    }
+
+    /// None cert should roundtrip to None
+    #[test]
+    fn none_hand_ser_deser() {
+        let block = Rdg { lang: None, hand: None, var_seq: 1, text: "text".to_string(), };
+        let sr = quick_xml::se::to_string(&block).unwrap();
+        let ds: Rdg = quick_xml::de::from_str(&sr).unwrap();
+        assert_eq!(ds, block);
     }
 }
