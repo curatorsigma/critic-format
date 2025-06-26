@@ -259,7 +259,7 @@ impl From<schema::Rdg> for normalized::Version {
         Self {
             lang: value.lang,
             hand: value.hand,
-            text: value.text,
+            content: value.content,
         }
     }
 }
@@ -422,7 +422,7 @@ fn denorm_versions(
         res.push(schema::Rdg {
             lang: version.lang,
             hand: version.hand,
-            text: version.text,
+            content: version.content,
             var_seq: i32::try_from(i).map_err(|_| NormalizationError::TooManyVersions)?,
         });
     }
@@ -520,7 +520,7 @@ mod test {
                                         lang: None,
                                         cert: Some("high".to_string()),
                                         agent: "water".to_string(),
-                                        text: "d".to_string(),
+                                        content: "d".to_string(),
                                     },
                                 ),
                                 crate::normalized::InlineBlock::Text(
@@ -551,12 +551,12 @@ mod test {
                                             crate::normalized::Version {
                                                 lang: None,
                                                 hand: Some("hand1".to_string()),
-                                                text: "sam stuff 1".to_string(),
+                                                content: "sam stuff 1".to_string(),
                                             },
                                             crate::normalized::Version {
                                                 lang: None,
                                                 hand: Some("hand2".to_string()),
-                                                text: "sam stuff 2".to_string(),
+                                                content: "sam stuff 2".to_string(),
                                             },
                                         ],
                                     },

@@ -400,7 +400,7 @@ pub struct Damage {
     pub agent: String,
     /// The reproduction of the damaged text
     #[serde(rename = "$text")]
-    pub text: String,
+    pub content: String,
 }
 impl Damage {
     pub fn trim(self) -> Self {
@@ -408,7 +408,7 @@ impl Damage {
             lang: self.lang,
             cert: self.cert,
             agent: self.agent,
-            text: trim_if_required(self.text),
+            content: trim_if_required(self.content),
         }
     }
 }
@@ -473,7 +473,7 @@ pub struct Rdg {
     pub var_seq: i32,
     /// The actual text of this reading
     #[serde(rename = "$text")]
-    pub text: String,
+    pub content: String,
 }
 impl Rdg {
     pub fn trim(self) -> Self {
@@ -481,7 +481,7 @@ impl Rdg {
             lang: self.lang,
             hand: self.hand,
             var_seq: self.var_seq,
-            text: trim_if_required(self.text),
+            content: trim_if_required(self.content),
         }
     }
 }
@@ -511,7 +511,13 @@ pub struct Gap {
 }
 impl Default for Gap {
     fn default() -> Self {
-        Self { unit: ExtentUnit::default(), n: 1, reason: String::default(), cert: None, content: None, }
+        Self {
+            unit: ExtentUnit::default(),
+            n: 1,
+            reason: String::default(),
+            cert: None,
+            content: None,
+        }
     }
 }
 
@@ -537,8 +543,6 @@ impl Default for ExtentUnit {
 
 #[cfg(test)]
 mod test {
-    use serde::de::Expected;
-
     use super::*;
 
     #[test]
@@ -694,7 +698,7 @@ mod test {
                 lang: None,
                 hand: Some("handname".to_string()),
                 var_seq: 1,
-                text: "The content.".to_string(),
+                content: "The content.".to_string(),
             }
         );
     }
@@ -711,7 +715,7 @@ mod test {
                 lang: None,
                 hand: None,
                 var_seq: 1,
-                text: "The content.".to_string(),
+                content: "The content.".to_string(),
             }
         );
     }
@@ -747,13 +751,13 @@ mod test {
                         lang: None,
                         hand: None,
                         var_seq: 1,
-                        text: "Content1".to_string()
+                        content: "Content1".to_string()
                     },
                     Rdg {
                         lang: None,
                         hand: None,
                         var_seq: 2,
-                        text: "Content2".to_string()
+                        content: "Content2".to_string()
                     }
                 ]
             }
@@ -772,7 +776,7 @@ mod test {
                 lang: None,
                 cert: Some("low".to_string()),
                 agent: "water".to_string(),
-                text: "damaged".to_string()
+                content: "damaged".to_string()
             }
         );
     }
@@ -789,7 +793,7 @@ mod test {
                 lang: Some("en".to_string()),
                 cert: Some("low".to_string()),
                 agent: "water".to_string(),
-                text: "damaged".to_string()
+                content: "damaged".to_string()
             }
         );
     }
@@ -833,7 +837,7 @@ mod test {
                 lang: None,
                 cert: Some("low".to_string()),
                 agent: "water".to_string(),
-                text: "damaged".to_string()
+                content: "damaged".to_string()
             })
         );
     }
@@ -893,7 +897,7 @@ mod test {
                     lang: None,
                     cert: Some("low".to_string()),
                     agent: "water".to_string(),
-                    text: "damaged".to_string()
+                    content: "damaged".to_string()
                 })
             })
         );
@@ -985,13 +989,13 @@ mod test {
                         lang: None,
                         hand: None,
                         var_seq: 1,
-                        text: "Content1".to_string()
+                        content: "Content1".to_string()
                     },
                     Rdg {
                         lang: None,
                         hand: None,
                         var_seq: 2,
-                        text: "Content2".to_string()
+                        content: "Content2".to_string()
                     },
                 ]
             })
@@ -1095,7 +1099,7 @@ mod test {
                             lang: None,
                             cert: Some("low".to_string()),
                             agent: "water".to_string(),
-                            text: "damaged".to_string()
+                            content: "damaged".to_string()
                         })
                     })
                 ]
@@ -1147,7 +1151,7 @@ mod test {
                                     lang: None,
                                     cert: Some("low".to_string()),
                                     agent: "water".to_string(),
-                                    text: "damaged".to_string()
+                                    content: "damaged".to_string()
                                 })
                             })
                         ]
@@ -1497,7 +1501,7 @@ mod test {
                                                     lang: None,
                                                     cert: Some("high".to_string()),
                                                     agent: "water".to_string(),
-                                                    text: "d".to_string(),
+                                                    content: "d".to_string(),
                                                 },
                                             ),
                                         },
@@ -1543,7 +1547,7 @@ mod test {
                                                         "hand1".to_string(),
                                                     ),
                                                     var_seq: 1,
-                                                    text: "sam stuff 1".to_string(),
+                                                    content: "sam stuff 1".to_string(),
                                                 },
                                                 Rdg {
                                                     lang: None,
@@ -1551,7 +1555,7 @@ mod test {
                                                         "hand2".to_string(),
                                                     ),
                                                     var_seq: 2,
-                                                    text: "sam stuff 2".to_string(),
+                                                    content: "sam stuff 2".to_string(),
                                                 },
                                             ],
                                         },
@@ -1575,7 +1579,7 @@ mod test {
             lang: Some("language".to_string()),
             cert: Some("high".to_string()),
             agent: "agent".to_string(),
-            text: "text".to_string(),
+            content: "text".to_string(),
         };
         let sr = quick_xml::se::to_string(&dmg);
         dbg!(&sr);
@@ -1588,7 +1592,12 @@ mod test {
     /// None Language should roundtrip to None
     #[test]
     fn none_language_ser_deser() {
-        let block = Damage { lang: None, cert: Some("high".to_string()), agent: "agent".to_string(), text: "text".to_string() };
+        let block = Damage {
+            lang: None,
+            cert: Some("high".to_string()),
+            agent: "agent".to_string(),
+            content: "text".to_string(),
+        };
         let sr = quick_xml::se::to_string(&block).unwrap();
         let ds: Damage = quick_xml::de::from_str(&sr).unwrap();
         assert_eq!(ds, block);
@@ -1597,7 +1606,13 @@ mod test {
     /// None cert should roundtrip to None
     #[test]
     fn none_cert_ser_deser() {
-        let block = Gap { reason: "reason".to_string(), unit: ExtentUnit::Line, n: 1, cert: None, content: Some("content".to_string()), };
+        let block = Gap {
+            reason: "reason".to_string(),
+            unit: ExtentUnit::Line,
+            n: 1,
+            cert: None,
+            content: Some("content".to_string()),
+        };
         let sr = quick_xml::se::to_string(&block).unwrap();
         let ds: Gap = quick_xml::de::from_str(&sr).unwrap();
         assert_eq!(ds, block);
@@ -1606,7 +1621,12 @@ mod test {
     /// None cert should roundtrip to None
     #[test]
     fn none_hand_ser_deser() {
-        let block = Rdg { lang: None, hand: None, var_seq: 1, text: "text".to_string(), };
+        let block = Rdg {
+            lang: None,
+            hand: None,
+            var_seq: 1,
+            content: "text".to_string(),
+        };
         let sr = quick_xml::se::to_string(&block).unwrap();
         let ds: Rdg = quick_xml::de::from_str(&sr).unwrap();
         assert_eq!(ds, block);
@@ -1615,7 +1635,13 @@ mod test {
     #[test]
     fn gap_with_content() {
         let xml = r#"<gap reason="lost" unit="column" n="2" cert="high">content</gap>"#;
-        let expected = Gap { reason: "lost".to_string(), n: 2, unit: ExtentUnit::Column, cert: Some("high".to_string()), content: Some("content".to_string())};
+        let expected = Gap {
+            reason: "lost".to_string(),
+            n: 2,
+            unit: ExtentUnit::Column,
+            cert: Some("high".to_string()),
+            content: Some("content".to_string()),
+        };
         let deser: Gap = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(deser, expected);
         let sr = quick_xml::se::to_string_with_root("gap", &expected).unwrap();
@@ -1625,7 +1651,13 @@ mod test {
     #[test]
     fn gap_without_cert() {
         let xml = r#"<gap reason="lost" unit="column" n="2">content</gap>"#;
-        let expected = Gap { reason: "lost".to_string(), n: 2, unit: ExtentUnit::Column, cert: None, content: Some("content".to_string())};
+        let expected = Gap {
+            reason: "lost".to_string(),
+            n: 2,
+            unit: ExtentUnit::Column,
+            cert: None,
+            content: Some("content".to_string()),
+        };
         let deser: Gap = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(deser, expected);
         let sr = quick_xml::se::to_string_with_root("gap", &expected).unwrap();
@@ -1635,7 +1667,12 @@ mod test {
     #[test]
     fn damage_without_cert() {
         let xml = r#"<damage agent="water">content</damage>"#;
-        let expected = Damage { lang: None, cert: None, agent: "water".to_string(), text: "content".to_string(), };
+        let expected = Damage {
+            lang: None,
+            cert: None,
+            agent: "water".to_string(),
+            content: "content".to_string(),
+        };
         let deser: Damage = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(expected, deser);
         let ser = quick_xml::se::to_string_with_root("damage", &deser).unwrap();

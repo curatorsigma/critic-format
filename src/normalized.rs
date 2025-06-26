@@ -111,7 +111,10 @@ pub struct Anchor {
 /// Default for user facing code
 impl Default for Anchor {
     fn default() -> Self {
-        Self { anchor_id: "A_V_SCHEME-SHORHAND_VERSE-NUMBER".to_string(), anchor_type: "SCHEME-LONG-FORM".to_string() }
+        Self {
+            anchor_id: "A_V_SCHEME-SHORHAND_VERSE-NUMBER".to_string(),
+            anchor_type: "SCHEME-LONG-FORM".to_string(),
+        }
     }
 }
 
@@ -138,7 +141,7 @@ pub struct Version {
     /// The different hands should be explained in the [`<handDesc>`](crate::schema::HandDesc) in the header.
     pub hand: Option<String>,
     /// The actual text of this reading
-    pub text: String,
+    pub content: String,
 }
 
 pub type Lacuna = crate::schema::Gap;

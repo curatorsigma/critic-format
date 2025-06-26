@@ -55,7 +55,8 @@ pub trait FromTypeLangAndContent {
     fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self;
 
     fn from_type_and_lang(block_type: BlockType, lang: String) -> Self
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Self::from_type_lang_and_content(block_type, lang, String::default())
     }
@@ -82,27 +83,29 @@ pub enum BlockType {
 impl FromTypeLangAndContent for Block {
     fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self {
         match block_type {
-            BlockType::Text => {
-                Self::Text(Paragraph { lang, content })
-            }
-            BlockType::Abbreviation => {
-                Self::Abbreviation(Abbreviation { lang, surface: content.clone(), expansion: content })
-            }
-            BlockType::Break => {
-                Self::Break(BreakType::default())
-            }
-            BlockType::Lacuna => {
-                Self::Lacuna(Lacuna::default())
-            }
-            BlockType::Anchor => {
-                Self::Anchor(Anchor::default())
-            }
-            BlockType::Uncertain => {
-                Self::Uncertain(Uncertain { lang, cert: None, agent: "DAMAGE_TYPE".to_string(), text: content.to_string() })
-            }
-            BlockType::Correction => {
-                Self::Correction(Correction { lang: lang.clone(), versions: vec![ Version { lang, hand: None, text: content, } ] })
-            }
+            BlockType::Text => Self::Text(Paragraph { lang, content }),
+            BlockType::Abbreviation => Self::Abbreviation(Abbreviation {
+                lang,
+                surface: content.clone(),
+                expansion: content,
+            }),
+            BlockType::Break => Self::Break(BreakType::default()),
+            BlockType::Lacuna => Self::Lacuna(Lacuna::default()),
+            BlockType::Anchor => Self::Anchor(Anchor::default()),
+            BlockType::Uncertain => Self::Uncertain(Uncertain {
+                lang,
+                cert: None,
+                agent: "DAMAGE_TYPE".to_string(),
+                content: content.to_string(),
+            }),
+            BlockType::Correction => Self::Correction(Correction {
+                lang: lang.clone(),
+                versions: vec![Version {
+                    lang,
+                    hand: None,
+                    content: content,
+                }],
+            }),
         }
     }
 }
@@ -122,7 +125,7 @@ impl Default for BreakType {
     }
 }
 /// Convert Line => Line, Column => Column and reject everything else (case sensitive)
-impl std::str::FromStr  for BreakType {
+impl std::str::FromStr for BreakType {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -171,7 +174,7 @@ pub struct Version {
     /// The different hands should be explained in the [`<handDesc>`](crate::schema::HandDesc) in the header.
     pub hand: Option<String>,
     /// The actual text of this reading
-    pub text: String,
+    pub content: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -183,7 +186,7 @@ pub struct Uncertain {
     /// The cause of damage
     pub agent: String,
     /// The reproduction of the damaged text
-    pub text: String,
+    pub content: String,
 }
 
 /// An expanded abbreviation.

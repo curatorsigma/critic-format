@@ -200,7 +200,7 @@ impl From<(String, normalized::Uncertain)> for streamed::Uncertain {
             },
             cert: value.1.cert,
             agent: value.1.agent,
-            text: value.1.text,
+            content: value.1.content,
         }
     }
 }
@@ -230,7 +230,7 @@ impl From<(String, normalized::Version)> for streamed::Version {
                 value.0
             },
             hand: value.1.hand,
-            text: value.1.text,
+            content: value.1.content,
         }
     }
 }
@@ -424,7 +424,7 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                             lang: Some(x.lang),
                             cert: x.cert,
                             agent: x.agent,
-                            text: x.text,
+                            content: x.content,
                         },
                     ));
                 }
@@ -441,7 +441,7 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                                 .map(|v| normalized::Version {
                                     lang: Some(v.lang),
                                     hand: v.hand,
-                                    text: v.text,
+                                    content: v.content,
                                 })
                                 .collect(),
                         },
