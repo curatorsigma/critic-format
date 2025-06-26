@@ -108,6 +108,12 @@ pub struct Anchor {
     /// MUST be `{versification-theme-long-form}`
     pub anchor_type: String,
 }
+/// Default for user facing code
+impl Default for Anchor {
+    fn default() -> Self {
+        Self { anchor_id: "A_V_SCHEME-SHORHAND_VERSE-NUMBER".to_string(), anchor_type: "SCHEME-LONG-FORM".to_string() }
+    }
+}
 
 pub type Uncertain = crate::schema::Damage;
 pub type Abbreviation = crate::schema::Choice;

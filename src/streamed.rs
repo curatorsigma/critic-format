@@ -51,6 +51,61 @@ impl Block {
         }
     }
 }
+pub trait FromTypeLangAndContent {
+    fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self;
+
+    fn from_type_and_lang(block_type: BlockType, lang: String) -> Self
+        where Self: Sized
+    {
+        Self::from_type_lang_and_content(block_type, lang, String::default())
+    }
+}
+
+/// Dataless enum for BlockTypes
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum BlockType {
+    /// A break in the text - line or column break
+    Break,
+    /// A lacuna in the manuscript
+    Lacuna,
+    /// An anchor - the beginning of a verse
+    Anchor,
+    // Normal unmarked text
+    Text,
+    /// A correction in the manuscript - where one scribal hand has overwritte / struck through / .. a text that was present earlier
+    Correction,
+    // A part of text that is damaged but still legible
+    Uncertain,
+    // An expanded abbreviation
+    Abbreviation,
+}
+impl FromTypeLangAndContent for Block {
+    fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self {
+        match block_type {
+            BlockType::Text => {
+                Self::Text(Paragraph { lang, content })
+            }
+            BlockType::Abbreviation => {
+                Self::Abbreviation(Abbreviation { lang, surface: content.clone(), expansion: content })
+            }
+            BlockType::Break => {
+                Self::Break(BreakType::default())
+            }
+            BlockType::Lacuna => {
+                Self::Lacuna(Lacuna::default())
+            }
+            BlockType::Anchor => {
+                Self::Anchor(Anchor::default())
+            }
+            BlockType::Uncertain => {
+                Self::Uncertain(Uncertain { lang, cert: None, agent: "DAMAGE_TYPE".to_string(), text: content.to_string() })
+            }
+            BlockType::Correction => {
+                Self::Correction(Correction { lang: lang.clone(), versions: vec![ Version { lang, hand: None, text: content, } ] })
+            }
+        }
+    }
+}
 
 /// The different types of Break that can occur in a critic-TEI file
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -60,7 +115,7 @@ pub enum BreakType {
     /// Columnbreak
     Column,
 }
-/// Default is a linebreak
+/// Default for user facing code
 impl Default for BreakType {
     fn default() -> Self {
         Self::Line
@@ -124,7 +179,7 @@ pub struct Uncertain {
     /// The language of this uncertain passage
     pub lang: String,
     /// The certainty the transcriber assigns to the reconstruction of the damaged text
-    pub cert: String,
+    pub cert: Option<String>,
     /// The cause of damage
     pub agent: String,
     /// The reproduction of the damaged text

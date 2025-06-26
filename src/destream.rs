@@ -611,6 +611,7 @@ mod test {
                     unit: streamed::ExtentUnit::Line,
                     n: 1,
                     cert: Some("high".to_string()),
+                    content: None,
                 }),
                 streamed::Block::Text(streamed::Paragraph {
                     lang: "hbo-Hebr".to_string(),
@@ -634,6 +635,7 @@ mod test {
                     unit: streamed::ExtentUnit::Column,
                     n: 2,
                     cert: Some("high".to_string()),
+                    content: None,
                 }),
                 streamed::Block::Text(streamed::Paragraph {
                     lang: "hbo-Hebr".to_string(),

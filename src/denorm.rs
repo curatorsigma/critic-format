@@ -518,7 +518,7 @@ mod test {
                                 crate::normalized::InlineBlock::Uncertain(
                                     crate::normalized::Uncertain {
                                         lang: None,
-                                        cert: "high".to_string(),
+                                        cert: Some("high".to_string()),
                                         agent: "water".to_string(),
                                         text: "d".to_string(),
                                     },
@@ -535,6 +535,7 @@ mod test {
                                     unit: crate::normalized::ExtentUnit::Character,
                                     n: 12,
                                     cert: Some("0.10".to_string()),
+                                    content: None,
                                 }),
                                 crate::normalized::InlineBlock::Abbreviation(
                                     crate::normalized::Abbreviation {
