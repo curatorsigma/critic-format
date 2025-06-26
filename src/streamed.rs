@@ -54,6 +54,7 @@ impl Block {
 pub trait FromTypeLangAndContent {
     fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self;
 
+    #[must_use]
     fn from_type_and_lang(block_type: BlockType, lang: String) -> Self
     where
         Self: Sized,
@@ -62,7 +63,7 @@ pub trait FromTypeLangAndContent {
     }
 }
 
-/// Dataless enum for BlockTypes
+/// Dataless enum for block types
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum BlockType {
     /// A break in the text - line or column break
@@ -103,7 +104,7 @@ impl FromTypeLangAndContent for Block {
                 versions: vec![Version {
                     lang,
                     hand: None,
-                    content: content,
+                    content,
                 }],
             }),
         }
@@ -125,7 +126,7 @@ impl Default for BreakType {
     }
 }
 /// Convert Line => Line, Column => Column and reject everything else (case sensitive)
-impl std::str::FromStr for BreakType {
+impl core::str::FromStr for BreakType {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -137,6 +138,7 @@ impl std::str::FromStr for BreakType {
     }
 }
 impl BreakType {
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             Self::Line => "Line",

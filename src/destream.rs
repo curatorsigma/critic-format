@@ -144,13 +144,13 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
                     res.push(streamed_block);
                 }
                 // the line is now ended - insert a line break except for the last line
-                if (defined_l_idx as usize) + 1 < num_of_lines {
+                if defined_l_idx + 1 < num_of_lines {
                     res.push(streamed::Block::Break(streamed::BreakType::Line));
                 }
                 line_idx += 1;
             }
             // the column is now ended - insert a column break except for the last column
-            if (defined_c_idx as usize) + 1 < num_of_cols {
+            if defined_c_idx + 1 < num_of_cols {
                 res.push(streamed::Block::Break(streamed::BreakType::Column));
             }
             col_idx += 1;
@@ -250,6 +250,7 @@ impl From<(String, normalized::Abbreviation)> for streamed::Abbreviation {
 }
 
 // destream - turn a stream into normalized form
+
 impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
     type Error = StreamError;
 
@@ -298,165 +299,16 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
             }
 
             // add this block to this line - but there are a few exceptions:
-            match block {
-                // end this line, start a new one
-                streamed::Block::Break(streamed::BreakType::Line) => {
-                    let most_common_lang_in_line = language_use_in_line
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    lines.push(normalized::Line {
-                        lang: most_common_lang_in_line,
-                        n: line_idx,
-                        blocks: core::mem::take(&mut blocks_in_line),
-                    });
-                    language_use_in_line = HashMap::<String, i32>::new();
-                    line_idx += 1;
-                }
-                // end this column, start a new one
-                streamed::Block::Break(streamed::BreakType::Column) => {
-                    // first end the line
-                    let most_common_lang_in_line = language_use_in_line
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    lines.push(normalized::Line {
-                        lang: most_common_lang_in_line,
-                        n: line_idx,
-                        blocks: core::mem::take(&mut blocks_in_line),
-                    });
-                    language_use_in_line = HashMap::<String, i32>::new();
-                    line_idx = 1;
-
-                    // now end the column and go to the next one
-                    let most_common_lang_in_col = language_use_in_col
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    let take_lines = core::mem::take(&mut lines);
-                    columns.push(normalized::Column {
-                        lang: most_common_lang_in_col,
-                        n: column_idx,
-                        lines: take_lines,
-                    });
-                    language_use_in_col = HashMap::<String, i32>::new();
-                    column_idx += 1;
-                }
-                // end this line, skip several, start a new one
-                streamed::Block::Lacuna(
-                    l @ streamed::Lacuna {
-                        unit: streamed::ExtentUnit::Line,
-                        n: extent,
-                        ..
-                    },
-                ) => {
-                    // first push the lacuna itself as a block
-                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
-                    // then end the line
-                    let most_common_lang_in_line = language_use_in_line
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    lines.push(normalized::Line {
-                        lang: most_common_lang_in_line,
-                        n: line_idx,
-                        blocks: core::mem::take(&mut blocks_in_line),
-                    });
-                    language_use_in_line = HashMap::<String, i32>::new();
-                    line_idx += extent + 1;
-                }
-                // end this column, skip several, start a new one
-                streamed::Block::Lacuna(
-                    l @ streamed::Lacuna {
-                        unit: streamed::ExtentUnit::Column,
-                        n: extent,
-                        ..
-                    },
-                ) => {
-                    // first push the lacuna itself as a block
-                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
-                    // then end the line
-                    let most_common_lang_in_line = language_use_in_line
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    lines.push(normalized::Line {
-                        lang: most_common_lang_in_line,
-                        n: line_idx,
-                        blocks: core::mem::take(&mut blocks_in_line),
-                    });
-                    language_use_in_line = HashMap::<String, i32>::new();
-                    line_idx = 1;
-
-                    // and finally end the column, skip some and and go to the next one
-                    let most_common_lang_in_col = language_use_in_col
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(b.1))
-                        .map(|(k, _v)| k)
-                        .map(std::string::ToString::to_string);
-                    columns.push(normalized::Column {
-                        lang: most_common_lang_in_col,
-                        n: column_idx,
-                        lines: core::mem::take(&mut lines),
-                    });
-                    language_use_in_col = HashMap::<String, i32>::new();
-                    lines.clear();
-                    column_idx += extent + 1;
-                }
-                // these are the normal blocks - just convert them
-                streamed::Block::Text(x) => {
-                    blocks_in_line.push(normalized::InlineBlock::Text(normalized::Paragraph {
-                        lang: Some(x.lang),
-                        content: x.content,
-                    }));
-                }
-                streamed::Block::Lacuna(l) => {
-                    blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
-                }
-                streamed::Block::Uncertain(x) => {
-                    blocks_in_line.push(normalized::InlineBlock::Uncertain(
-                        normalized::Uncertain {
-                            lang: Some(x.lang),
-                            cert: x.cert,
-                            agent: x.agent,
-                            content: x.content,
-                        },
-                    ));
-                }
-                streamed::Block::Anchor(x) => {
-                    blocks_in_line.push(normalized::InlineBlock::Anchor(x));
-                }
-                streamed::Block::Correction(x) => {
-                    blocks_in_line.push(normalized::InlineBlock::Correction(
-                        normalized::Correction {
-                            lang: Some(x.lang),
-                            versions: x
-                                .versions
-                                .into_iter()
-                                .map(|v| normalized::Version {
-                                    lang: Some(v.lang),
-                                    hand: v.hand,
-                                    content: v.content,
-                                })
-                                .collect(),
-                        },
-                    ));
-                }
-                streamed::Block::Abbreviation(x) => {
-                    blocks_in_line.push(normalized::InlineBlock::Abbreviation(
-                        normalized::Abbreviation {
-                            lang: Some(x.lang),
-                            surface: x.surface,
-                            expansion: x.expansion,
-                        },
-                    ));
-                }
-            }
+            handle_block(
+                block,
+                &mut blocks_in_line,
+                &mut lines,
+                &mut columns,
+                &mut language_use_in_line,
+                &mut language_use_in_col,
+                &mut line_idx,
+                &mut column_idx,
+            );
         }
 
         // now we need to add the remaining blocks as a final line/column as in a column break
@@ -488,76 +340,284 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
             });
         }
 
-        // calculate the language most commonly used in this text
-        let most_common_lang = language_use
-            .iter()
-            .max_by(|a, b| a.1.cmp(b.1))
-            .map(|(k, _v)| k)
-            .ok_or(StreamError::NoBlockWithLanguage)?;
+        let most_common_lang = normalize_language(&mut columns, &language_use)?;
 
-        // we now have a completely destreamed version
-        // However, all leaf nodes (Text, Uncertain, ...) have the language explicitly set, which
-        // is wasteful and unusual for xml.
-        //
-        // We now iterate top-down through the hierarchy and set the language
-        // Note that the language is set on all non-leafs (column/line) where:
-        // - any leaf has a lang attribute
-        // - the value is the most common language in the leafs below it
-        let global_lang = most_common_lang;
+        Ok(Self {
+            lang: most_common_lang.to_string(),
+            columns,
+        })
+    }
+}
 
-        for col in &mut columns {
-            let column_lang = col.lang.clone();
-            // unset the columns language if it is equal to the global language
-            if col.lang.as_ref().is_some_and(|x| x == global_lang) {
-                col.lang = None;
+fn most_common_lang(lang_context: &HashMap<String, i32>) -> Option<&str> {
+    lang_context
+        .iter()
+        .max_by(|a, b| a.1.cmp(b.1))
+        .map(|(k, _v)| k.as_str())
+}
+
+/// End a line with the current `blocks_in_line`, push it to the lines, increase the index to the
+/// next line, clear language use in the line
+fn end_line(
+    lines: &mut Vec<normalized::Line>,
+    blocks_in_line: Vec<normalized::InlineBlock>,
+    line_idx: &mut i32,
+    language_use_in_line: &mut HashMap<String, i32>,
+) {
+    lines.push(normalized::Line {
+        lang: most_common_lang(language_use_in_line).map(std::string::ToString::to_string),
+        n: *line_idx,
+        blocks: blocks_in_line,
+    });
+    *language_use_in_line = HashMap::<String, i32>::new();
+    *line_idx += 1;
+}
+
+/// End a column with the current `lines`, push it to the columns, increase the index to the
+/// next column, clear language use in the column, reset the line index to 1
+fn end_column(
+    columns: &mut Vec<normalized::Column>,
+    lines: Vec<normalized::Line>,
+    line_idx: &mut i32,
+    column_idx: &mut i32,
+    language_use_in_col: &mut HashMap<String, i32>,
+) {
+    columns.push(normalized::Column {
+        lang: most_common_lang(language_use_in_col).map(std::string::ToString::to_string),
+        n: *column_idx,
+        lines,
+    });
+    *language_use_in_col = HashMap::<String, i32>::new();
+    *column_idx += 1;
+    *line_idx = 1;
+}
+
+/// Add a block to the datastructure, update language use and forward line and column indexes when
+/// a line or column is ended by this block
+#[allow(clippy::too_many_arguments)]
+fn handle_block(
+    block: streamed::Block,
+    blocks_in_line: &mut Vec<normalized::InlineBlock>,
+    lines: &mut Vec<normalized::Line>,
+    columns: &mut Vec<normalized::Column>,
+    language_use_in_line: &mut HashMap<String, i32>,
+    language_use_in_col: &mut HashMap<String, i32>,
+    line_idx: &mut i32,
+    column_idx: &mut i32,
+) {
+    match block {
+        // end this line, start a new one
+        streamed::Block::Break(streamed::BreakType::Line) => {
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+        }
+        // end this column, start a new one
+        streamed::Block::Break(streamed::BreakType::Column) => {
+            // first end the line
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+
+            // now end the column and go to the next one
+            end_column(
+                columns,
+                core::mem::take(lines),
+                line_idx,
+                column_idx,
+                language_use_in_col,
+            );
+        }
+        // end this line, skip several, start a new one
+        streamed::Block::Lacuna(
+            l @ streamed::Lacuna {
+                unit: streamed::ExtentUnit::Line,
+                n: extent,
+                ..
+            },
+        ) => {
+            // first push the lacuna itself as a block
+            blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+            // then end the line
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+            // skip `extent` lines
+            *line_idx += extent;
+        }
+        // end this column, skip several, start a new one
+        streamed::Block::Lacuna(
+            l @ streamed::Lacuna {
+                unit: streamed::ExtentUnit::Column,
+                n: extent,
+                ..
+            },
+        ) => {
+            // first push the lacuna itself as a block
+            blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+            // then end the line
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+
+            // and finally end the column, skip some and and go to the next one
+            end_column(
+                columns,
+                core::mem::take(lines),
+                line_idx,
+                column_idx,
+                language_use_in_col,
+            );
+            *column_idx += extent;
+        }
+        // these are the normal blocks - just convert them
+        streamed::Block::Text(x) => {
+            blocks_in_line.push(normalized::InlineBlock::Text(x.into()));
+        }
+        streamed::Block::Lacuna(l) => {
+            blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+        }
+        streamed::Block::Uncertain(x) => {
+            blocks_in_line.push(normalized::InlineBlock::Uncertain(x.into()));
+        }
+        streamed::Block::Anchor(x) => {
+            blocks_in_line.push(normalized::InlineBlock::Anchor(x));
+        }
+        streamed::Block::Correction(x) => {
+            blocks_in_line.push(normalized::InlineBlock::Correction(x.into()));
+        }
+        streamed::Block::Abbreviation(x) => {
+            blocks_in_line.push(normalized::InlineBlock::Abbreviation(x.into()));
+        }
+    }
+}
+
+fn normalize_language<'b>(
+    columns: &mut Vec<normalized::Column>,
+    language_use: &'b HashMap<String, i32>,
+) -> Result<&'b str, StreamError> {
+    // calculate the language most commonly used in this text
+    let most_common_lang = language_use
+        .iter()
+        .max_by(|a, b| a.1.cmp(b.1))
+        .map(|(k, _v)| k)
+        .ok_or(StreamError::NoBlockWithLanguage)?;
+
+    // we now have a completely destreamed version
+    // However, all leaf nodes (Text, Uncertain, ...) have the language explicitly set, which
+    // is wasteful and unusual for xml.
+    //
+    // We now iterate top-down through the hierarchy and set the language
+    // Note that the language is set on all non-leafs (column/line) where:
+    // - any leaf has a lang attribute
+    // - the value is the most common language in the leafs below it
+    let global_lang = most_common_lang;
+
+    for col in columns {
+        let column_lang = col.lang.clone();
+        // unset the columns language if it is equal to the global language
+        if col.lang.as_ref().is_some_and(|x| x == global_lang) {
+            col.lang = None;
+        }
+        for line in &mut col.lines {
+            let line_lang = line.lang.clone();
+            // unset the line language if it is equal to the column language
+            if line.lang == column_lang {
+                line.lang = None;
             }
-            for line in &mut col.lines {
-                let line_lang = line.lang.clone();
-                // unset the line language if it is equal to the column language
-                if line.lang == column_lang {
-                    line.lang = None;
-                }
-                // unset the block language if it is the same as line lang
-                for block in &mut line.blocks {
-                    match block {
-                        normalized::InlineBlock::Lacuna(_) | normalized::InlineBlock::Anchor(_) => {
+            // unset the block language if it is the same as line lang
+            for block in &mut line.blocks {
+                match block {
+                    normalized::InlineBlock::Lacuna(_) | normalized::InlineBlock::Anchor(_) => {}
+                    normalized::InlineBlock::Text(x) => {
+                        if x.lang == line_lang {
+                            x.lang = None;
                         }
-                        normalized::InlineBlock::Text(x) => {
-                            if x.lang == line_lang {
-                                x.lang = None;
-                            }
+                    }
+                    normalized::InlineBlock::Uncertain(x) => {
+                        if x.lang == line_lang {
+                            x.lang = None;
                         }
-                        normalized::InlineBlock::Uncertain(x) => {
-                            if x.lang == line_lang {
-                                x.lang = None;
-                            }
+                    }
+                    normalized::InlineBlock::Abbreviation(x) => {
+                        if x.lang == line_lang {
+                            x.lang = None;
                         }
-                        normalized::InlineBlock::Abbreviation(x) => {
-                            if x.lang == line_lang {
-                                x.lang = None;
-                            }
+                    }
+                    normalized::InlineBlock::Correction(x) => {
+                        let cor_lang = x.lang.clone();
+                        if x.lang == line_lang {
+                            x.lang = None;
                         }
-                        normalized::InlineBlock::Correction(x) => {
-                            let cor_lang = x.lang.clone();
-                            if x.lang == line_lang {
-                                x.lang = None;
-                            }
-                            // corrections also have lang on each of their versions
-                            for version in &mut x.versions {
-                                if version.lang == cor_lang {
-                                    version.lang = None;
-                                }
+                        // corrections also have lang on each of their versions
+                        for version in &mut x.versions {
+                            if version.lang == cor_lang {
+                                version.lang = None;
                             }
                         }
                     }
                 }
             }
         }
+    }
+    Ok(most_common_lang)
+}
 
-        Ok(Self {
-            lang: most_common_lang.to_string(),
-            columns,
-        })
+impl From<streamed::Correction> for normalized::Correction {
+    fn from(value: streamed::Correction) -> Self {
+        normalized::Correction {
+            lang: Some(value.lang),
+            versions: value
+                .versions
+                .into_iter()
+                .map(|v| normalized::Version {
+                    lang: Some(v.lang),
+                    hand: v.hand,
+                    content: v.content,
+                })
+                .collect(),
+        }
+    }
+}
+impl From<streamed::Abbreviation> for normalized::Abbreviation {
+    fn from(value: streamed::Abbreviation) -> Self {
+        normalized::Abbreviation {
+            lang: Some(value.lang),
+            surface: value.surface,
+            expansion: value.expansion,
+        }
+    }
+}
+
+impl From<streamed::Uncertain> for normalized::Uncertain {
+    fn from(value: streamed::Uncertain) -> Self {
+        normalized::Uncertain {
+            lang: Some(value.lang),
+            cert: value.cert,
+            agent: value.agent,
+            content: value.content,
+        }
+    }
+}
+
+impl From<streamed::Paragraph> for normalized::Paragraph {
+    fn from(value: streamed::Paragraph) -> Self {
+        normalized::Paragraph {
+            lang: Some(value.lang),
+            content: value.content,
+        }
     }
 }
 

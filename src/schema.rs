@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 fn trim_if_required(s: String) -> String {
     let trimmed = s.trim();
-    if trimmed.len() != s.len() {
-        trimmed.to_string()
-    } else {
+    if trimmed.len() == s.len() {
         s
+    } else {
+        trimmed.to_string()
     }
 }
 
@@ -31,6 +31,7 @@ pub struct Tei {
 }
 impl Tei {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             xmlns: self.xmlns,
@@ -64,6 +65,7 @@ pub struct FileDesc {
     pub source_desc: SourceDesc,
 }
 impl FileDesc {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             title_stmt: TitleStmt {
@@ -119,6 +121,7 @@ pub struct MsDesc {
     pub phys_desc: PhysDesc,
 }
 impl MsDesc {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             ms_identifier: self.ms_identifier.trim(),
@@ -141,6 +144,7 @@ pub struct MsIdentifier {
     pub ms_name: String,
 }
 impl MsIdentifier {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             institution: self.institution.map(trim_if_required),
@@ -162,6 +166,7 @@ pub struct PhysDesc {
     pub script_desc: ScriptDesc,
 }
 impl PhysDesc {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             hand_desc: HandDesc {
@@ -204,6 +209,7 @@ pub struct Text {
 }
 impl Text {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             body: self.body.trim(),
@@ -223,10 +229,11 @@ pub struct Body {
 }
 impl Body {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
-            columns: self.columns.into_iter().map(|x| x.trim()).collect(),
+            columns: self.columns.into_iter().map(Column::trim).collect(),
         }
     }
 }
@@ -250,12 +257,13 @@ pub struct Column {
 }
 impl Column {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
             div_type: self.div_type,
             n: self.n,
-            lines: self.lines.into_iter().map(|x| x.trim()).collect(),
+            lines: self.lines.into_iter().map(Line::trim).collect(),
         }
     }
 }
@@ -279,12 +287,13 @@ pub struct Line {
 }
 impl Line {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
             div_type: self.div_type,
             n: self.n,
-            blocks: self.blocks.into_iter().map(|x| x.trim()).collect(),
+            blocks: self.blocks.into_iter().map(InlineBlock::trim).collect(),
         }
     }
 }
@@ -314,6 +323,7 @@ pub enum InlineBlock {
 }
 impl InlineBlock {
     /// Trim whitespace from all text fields
+    #[must_use]
     pub fn trim(self) -> Self {
         match self {
             Self::Gap(_) | Self::Anchor(_) => self,
@@ -334,6 +344,7 @@ pub struct TDOCWrapper {
     pub value: TextDamageOrChoice,
 }
 impl TDOCWrapper {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
@@ -359,6 +370,7 @@ pub enum TextDamageOrChoice {
     Choice(Choice),
 }
 impl TextDamageOrChoice {
+    #[must_use]
     pub fn trim(self) -> Self {
         match self {
             Self::Text(x) => Self::Text(trim_if_required(x)),
@@ -403,6 +415,7 @@ pub struct Damage {
     pub content: String,
 }
 impl Damage {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
@@ -429,6 +442,7 @@ pub struct Choice {
     pub expansion: String,
 }
 impl Choice {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
@@ -449,10 +463,11 @@ pub struct App {
     pub rdg: Vec<Rdg>,
 }
 impl App {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
-            rdg: self.rdg.into_iter().map(|x| x.trim()).collect(),
+            rdg: self.rdg.into_iter().map(Rdg::trim).collect(),
         }
     }
 }
@@ -476,6 +491,7 @@ pub struct Rdg {
     pub content: String,
 }
 impl Rdg {
+    #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
