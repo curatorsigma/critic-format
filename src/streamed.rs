@@ -60,6 +60,12 @@ pub enum BreakType {
     /// Columnbreak
     Column,
 }
+/// Default is a linebreak
+impl Default for BreakType {
+    fn default() -> Self {
+        Self::Line
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {
