@@ -179,7 +179,7 @@ The missing characters MUST be enclosed in `<gap>`.
     - good examples of reasons include: `lost`, `smeared`, `burned`, `water`
 - `@unit` MUST be given and MUST be one of `character`, `line`, `column`
 - `@n` MUST be given
-- `@cert` MAY be given and qualifies the certainty in assertaining the amount of missing units
+- `@cert` MAY be given and qualifies both the certainty in assertaining the amount of missing units as well as the proposed reconstruction if any
 
 ## Ancient Corrections
 When multiple ancient surface forms are present in a place, these rules apply.
