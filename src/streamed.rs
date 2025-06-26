@@ -6,10 +6,12 @@
 //! with column and line breaks being blocks themselves. These types represents the data as seen in
 //! the editor.
 
+use serde::{Deserialize, Serialize};
+
 use crate::normalized;
 
 /// An entire manuscript with its content streamed
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Manuscript {
     /// The header with any meta-information
     pub meta: Meta,
@@ -20,7 +22,7 @@ pub struct Manuscript {
 pub type Meta = normalized::Meta;
 
 /// A block in the editor, without the associated language
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Block {
     /// A break in the text - line or column break
     Break(BreakType),
@@ -51,7 +53,7 @@ impl Block {
 }
 
 /// The different types of Break that can occur in a critic-TEI file
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum BreakType {
     /// Linebreak
     Line,
@@ -59,7 +61,7 @@ pub enum BreakType {
     Column,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {
     pub lang: String,
     pub content: String,
@@ -69,7 +71,7 @@ pub type Lacuna = normalized::Lacuna;
 pub type Anchor = normalized::Anchor;
 
 /// An ancient correction.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Correction {
     /// The language of this correction
     pub lang: String,
@@ -79,7 +81,7 @@ pub struct Correction {
 }
 
 /// An individual reading (version) inside a correction.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Version {
     /// The language of this version
     pub lang: String,
@@ -91,7 +93,7 @@ pub struct Version {
     pub text: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Uncertain {
     /// The language of this uncertain passage
     pub lang: String,
@@ -104,7 +106,7 @@ pub struct Uncertain {
 }
 
 /// An expanded abbreviation.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Abbreviation {
     /// The language of this abbreviation
     pub lang: String,
