@@ -10,6 +10,5 @@ categories = ["encoding"]
 authors = ["Jonathan Schleucher"]
 
 [dependencies]
-# quick-xml = { version = "0.37.5", features = ["serialize"] }
-quick-xml = { git="https://github.com/curatorsigma/quick-xml.git", branch="serde_roundtrip_xml_attrs", features = ["serialize"] }
+quick-xml = { version = "0.38.0", features = ["serialize"] }
 serde = { version = "1.0.217", features = ["derive"] }
