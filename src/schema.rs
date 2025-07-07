@@ -559,7 +559,7 @@ impl core::str::FromStr for ExtentUnit {
             "Character" => Ok(Self::Character),
             "Line" => Ok(Self::Line),
             "Column" => Ok(Self::Column),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -567,9 +567,9 @@ impl ExtentUnit {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Character => { "Character" }
-            Self::Line => { "Line" }
-            Self::Column=> { "Column" }
+            Self::Character => "Character",
+            Self::Line => "Line",
+            Self::Column => "Column",
         }
     }
 }
