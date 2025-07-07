@@ -91,7 +91,14 @@ impl FromTypeLangAndContent for Block {
                 expansion: content,
             }),
             BlockType::Break => Self::Break(BreakType::default()),
-            BlockType::Lacuna => Self::Lacuna(Lacuna::default()),
+            BlockType::Lacuna => Self::Lacuna(Lacuna {
+                lang: Some(lang),
+                unit: ExtentUnit::default(),
+                n: 1,
+                reason: String::default(),
+                cert: None,
+                content: Some(content),
+            }),
             BlockType::Anchor => Self::Anchor(Anchor::default()),
             BlockType::Uncertain => Self::Uncertain(Uncertain {
                 lang,
