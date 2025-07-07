@@ -103,7 +103,7 @@ impl FromTypeLangAndContent for Block {
             BlockType::Uncertain => Self::Uncertain(Uncertain {
                 lang,
                 cert: None,
-                agent: "DAMAGE_TYPE".to_string(),
+                agent: String::default(),
                 content: content.to_string(),
             }),
             BlockType::Correction => Self::Correction(Correction {
