@@ -531,6 +531,7 @@ mod test {
                                     },
                                 ),
                                 crate::normalized::InlineBlock::Lacuna(crate::normalized::Lacuna {
+                                    lang: None,
                                     reason: "lost".to_string(),
                                     unit: crate::normalized::ExtentUnit::Character,
                                     n: 12,

@@ -507,6 +507,9 @@ impl Rdg {
 /// For damaged but legible text, use [`<damage>`](Damage) instead.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Gap {
+    /// The language set on the `<gap>` element
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
     /// The reason this text is lacunous
     #[serde(rename = "@reason")]
     pub reason: String,
@@ -528,6 +531,7 @@ pub struct Gap {
 impl Default for Gap {
     fn default() -> Self {
         Self {
+            lang: None,
             unit: ExtentUnit::default(),
             n: 1,
             reason: String::default(),
@@ -625,6 +629,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
@@ -643,6 +648,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Line,
@@ -661,6 +667,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Character,
@@ -675,6 +682,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Line,
@@ -689,6 +697,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
@@ -966,6 +975,7 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::Gap(Gap {
+                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
@@ -1099,6 +1109,7 @@ mod test {
                 n: None,
                 blocks: vec![
                     InlineBlock::Gap(Gap {
+                        lang: None,
                         reason: "lost".to_string(),
                         n: 2,
                         unit: ExtentUnit::Column,
@@ -1151,6 +1162,7 @@ mod test {
                         n: None,
                         blocks: vec![
                             InlineBlock::Gap(Gap {
+                                lang: None,
                                 reason: "lost".to_string(),
                                 n: 2,
                                 unit: ExtentUnit::Column,
@@ -1532,6 +1544,7 @@ mod test {
                                     ),
                                     InlineBlock::Gap(
                                         Gap {
+            lang: None,
                                             reason: "lost".to_string(),
                                             n: 12,
                                             unit: ExtentUnit::Character,
@@ -1623,6 +1636,7 @@ mod test {
     #[test]
     fn none_cert_ser_deser() {
         let block = Gap {
+            lang: None,
             reason: "reason".to_string(),
             unit: ExtentUnit::Line,
             n: 1,
@@ -1652,6 +1666,7 @@ mod test {
     fn gap_with_content() {
         let xml = r#"<gap reason="lost" unit="column" n="2" cert="high">content</gap>"#;
         let expected = Gap {
+            lang: None,
             reason: "lost".to_string(),
             n: 2,
             unit: ExtentUnit::Column,
@@ -1668,6 +1683,7 @@ mod test {
     fn gap_without_cert() {
         let xml = r#"<gap reason="lost" unit="column" n="2">content</gap>"#;
         let expected = Gap {
+            lang: None,
             reason: "lost".to_string(),
             n: 2,
             unit: ExtentUnit::Column,

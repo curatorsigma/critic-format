@@ -667,6 +667,7 @@ mod test {
                     content: "line 1 content. This line is completely preserved.".to_string(),
                 }),
                 streamed::Block::Lacuna(streamed::Lacuna {
+                    lang: None,
                     reason: "lost".to_string(),
                     unit: streamed::ExtentUnit::Line,
                     n: 1,
@@ -691,6 +692,7 @@ mod test {
                 }),
                 streamed::Block::Break(streamed::BreakType::Line),
                 streamed::Block::Lacuna(streamed::Lacuna {
+                    lang: None,
                     reason: "lost".to_string(),
                     unit: streamed::ExtentUnit::Column,
                     n: 2,
