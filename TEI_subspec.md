@@ -174,7 +174,7 @@ The damaged characters MUST be enclosed in `<p><damaged>`.
 ## Lacunous Elements {#lacuna}
 This occurs when the existance of characters, lines, columns etc is obvious (for grammatical-, layout- or other reasons), but they are illegible. Whether physical traces of these characters such as illegible smears of ink are present or not is irrelevant. If the characters are hard but possible to read, use [Damaged Characters](#uncertain) instead.
 
-The missing characters MUST be enclosed in `<gap>`.
+Instead of missing characters, a `<gap>` element MUST be used, directly inside the lines `<div>`.
 - `@reason` MUST be given
     - good examples of reasons include: `lost`, `smeared`, `burned`, `water`
 - `@unit` MUST be given and MUST be one of `character`, `line`, `column`

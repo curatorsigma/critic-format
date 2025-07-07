@@ -531,12 +531,10 @@ mod test {
                                     },
                                 ),
                                 crate::normalized::InlineBlock::Lacuna(crate::normalized::Lacuna {
-                                    lang: None,
                                     reason: "lost".to_string(),
                                     unit: crate::normalized::ExtentUnit::Character,
                                     n: 12,
                                     cert: Some("0.10".to_string()),
-                                    content: None,
                                 }),
                                 crate::normalized::InlineBlock::Abbreviation(
                                     crate::normalized::Abbreviation {

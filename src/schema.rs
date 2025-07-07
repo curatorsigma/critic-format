@@ -507,9 +507,6 @@ impl Rdg {
 /// For damaged but legible text, use [`<damage>`](Damage) instead.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Gap {
-    /// The language set on the `<gap>` element
-    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
-    pub lang: Option<String>,
     /// The reason this text is lacunous
     #[serde(rename = "@reason")]
     pub reason: String,
@@ -524,19 +521,14 @@ pub struct Gap {
     /// If not content is proposed, the certainty for the approximate extent
     #[serde(rename = "@cert", skip_serializing_if = "Option::is_none")]
     pub cert: Option<String>,
-    /// The proposed content that would be in this lacuna
-    #[serde(rename = "$text")]
-    pub content: Option<String>,
 }
 impl Default for Gap {
     fn default() -> Self {
         Self {
-            lang: None,
             unit: ExtentUnit::default(),
             n: 1,
             reason: String::default(),
             cert: None,
-            content: None,
         }
     }
 }
@@ -629,12 +621,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
                 cert: Some("high".to_string()),
-                content: None,
             }
         );
     }
@@ -648,12 +638,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Line,
                 cert: None,
-                content: None,
             }
         );
     }
@@ -667,12 +655,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Character,
                 cert: None,
-                content: None,
             }
         );
 
@@ -682,12 +668,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Line,
                 cert: None,
-                content: None,
             }
         );
 
@@ -697,12 +681,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
                 cert: None,
-                content: None,
             }
         );
 
@@ -975,12 +957,10 @@ mod test {
         assert_eq!(
             result.unwrap(),
             InlineBlock::Gap(Gap {
-                lang: None,
                 reason: "lost".to_string(),
                 n: 2,
                 unit: ExtentUnit::Column,
                 cert: None,
-                content: None,
             })
         );
     }
@@ -1109,12 +1089,10 @@ mod test {
                 n: None,
                 blocks: vec![
                     InlineBlock::Gap(Gap {
-                        lang: None,
                         reason: "lost".to_string(),
                         n: 2,
                         unit: ExtentUnit::Column,
                         cert: None,
-                        content: None,
                     }),
                     InlineBlock::Anchor(Anchor {
                         xml_id: "A_V_MT_1Kg-3-4".to_string(),
@@ -1162,12 +1140,10 @@ mod test {
                         n: None,
                         blocks: vec![
                             InlineBlock::Gap(Gap {
-                                lang: None,
                                 reason: "lost".to_string(),
                                 n: 2,
                                 unit: ExtentUnit::Column,
                                 cert: None,
-                                content: None,
                             }),
                             InlineBlock::Anchor(Anchor {
                                 xml_id: "A_V_MT_1Kg-3-4".to_string(),
@@ -1544,14 +1520,12 @@ mod test {
                                     ),
                                     InlineBlock::Gap(
                                         Gap {
-            lang: None,
                                             reason: "lost".to_string(),
                                             n: 12,
                                             unit: ExtentUnit::Character,
                                             cert: Some(
                                                 "0.10".to_string(),
                                             ),
-                                            content: None,
                                         },
                                     ),
                                     InlineBlock::P(
@@ -1636,12 +1610,10 @@ mod test {
     #[test]
     fn none_cert_ser_deser() {
         let block = Gap {
-            lang: None,
             reason: "reason".to_string(),
             unit: ExtentUnit::Line,
             n: 1,
             cert: None,
-            content: Some("content".to_string()),
         };
         let sr = quick_xml::se::to_string(&block).unwrap();
         let ds: Gap = quick_xml::de::from_str(&sr).unwrap();
@@ -1664,14 +1636,12 @@ mod test {
 
     #[test]
     fn gap_with_content() {
-        let xml = r#"<gap reason="lost" unit="column" n="2" cert="high">content</gap>"#;
+        let xml = r#"<gap reason="lost" unit="column" n="2" cert="high"/>"#;
         let expected = Gap {
-            lang: None,
             reason: "lost".to_string(),
             n: 2,
             unit: ExtentUnit::Column,
             cert: Some("high".to_string()),
-            content: Some("content".to_string()),
         };
         let deser: Gap = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(deser, expected);
@@ -1681,14 +1651,12 @@ mod test {
 
     #[test]
     fn gap_without_cert() {
-        let xml = r#"<gap reason="lost" unit="column" n="2">content</gap>"#;
+        let xml = r#"<gap reason="lost" unit="column" n="2"/>"#;
         let expected = Gap {
-            lang: None,
             reason: "lost".to_string(),
             n: 2,
             unit: ExtentUnit::Column,
             cert: None,
-            content: Some("content".to_string()),
         };
         let deser: Gap = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(deser, expected);
