@@ -534,7 +534,7 @@ impl Default for Gap {
 }
 
 /// The unit used to express extent of a part of Text.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ExtentUnit {
     /// Single character
     #[serde(rename = "character")]
@@ -552,10 +552,41 @@ impl Default for ExtentUnit {
         Self::Character
     }
 }
+impl core::str::FromStr for ExtentUnit {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Character" => Ok(Self::Character),
+            "Line" => Ok(Self::Line),
+            "Column" => Ok(Self::Column),
+            _ => Err(())
+        }
+    }
+}
+impl ExtentUnit {
+    #[must_use]
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Character => { "Character" }
+            Self::Line => { "Line" }
+            Self::Column=> { "Column" }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn extent_name_roundtrip() {
+        let x = ExtentUnit::Character;
+        assert_eq!(x, x.name().parse().unwrap());
+        let x = ExtentUnit::Line;
+        assert_eq!(x, x.name().parse().unwrap());
+        let x = ExtentUnit::Column;
+        assert_eq!(x, x.name().parse().unwrap());
+    }
 
     #[test]
     fn choice() {
