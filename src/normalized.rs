@@ -112,8 +112,8 @@ pub struct Anchor {
 impl Default for Anchor {
     fn default() -> Self {
         Self {
-            anchor_id: "A_V_SCHEME-SHORHAND_VERSE-NUMBER".to_string(),
-            anchor_type: "SCHEME-LONG-FORM".to_string(),
+            anchor_id: "A_V_P_VERSE-NUMBER".to_string(),
+            anchor_type: "Present".to_string(),
         }
     }
 }
