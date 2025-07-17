@@ -11,8 +11,8 @@ Each page (not folio) of an ancient manuscript MUST reside in a separate TEI fil
 ## File Naming Scheme
 The names for TEI files SHOULD be `{manuscript name}_{folio}_{recto/verso}` for folios.
 
-Manuscripts in scroll form (or other forms without natural pagebreaks) SHOULD be given as a single TEI file.
-Their filename SHOULD be `{manuscript name}`
+Manuscripts in scroll form (or other forms without natural pagebreaks) SHOULD be given as an individual TEI file for each image.
+Their filename SHOULD be `{manuscript name}_{image-id}`
 
 ## Directory Structure
 `critic` uses this directory structure. For interchange purposes, you are free to use any directory structure that seems convenient.
