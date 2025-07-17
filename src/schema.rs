@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Remove trailing whitespace if any exists, otherwise leave the original string untouched
 fn trim_if_required(s: String) -> String {
     let trimmed = s.trim();
     if trimmed.len() == s.len() {
@@ -436,18 +437,53 @@ pub struct Choice {
     pub lang: Option<String>,
     /// The surface form (the abbreviation) present in the manuscript
     #[serde(rename = "abbr")]
-    pub surface: String,
+    pub surface: AbbrSurface,
     /// The expanded form supplied by the transcriber
     #[serde(rename = "expan")]
-    pub expansion: String,
+    pub expansion: AbbrExpansion,
 }
 impl Choice {
     #[must_use]
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
-            surface: trim_if_required(self.surface),
-            expansion: trim_if_required(self.expansion),
+            surface: self.surface.trim(),
+            expansion: self.expansion.trim(),
+        }
+    }
+}
+
+/// The surface form of the abbreviation
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AbbrSurface {
+    #[serde(rename = "@xml:lang")]
+    pub lang: Option<String>,
+    #[serde(rename = "$text")]
+    pub content: String,
+}
+impl AbbrSurface {
+    #[must_use]
+    pub fn trim(self) -> Self {
+        Self {
+            lang: self.lang,
+            content: trim_if_required(self.content),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AbbrExpansion {
+    #[serde(rename = "@xml:lang")]
+    pub lang: Option<String>,
+    #[serde(rename = "$text")]
+    pub content: String,
+}
+impl AbbrExpansion {
+    #[must_use]
+    pub fn trim(self) -> Self {
+        Self {
+            lang: self.lang,
+            content: trim_if_required(self.content),
         }
     }
 }
@@ -597,8 +633,14 @@ mod test {
             result.unwrap(),
             Choice {
                 lang: None,
-                surface: "JHWH".to_string(),
-                expansion: "Jahwe".to_string()
+                surface: AbbrSurface {
+                    lang: None,
+                    content: "JHWH".to_string(),
+                },
+                expansion: AbbrExpansion {
+                    lang: None,
+                    content: "Jahwe".to_string(),
+                },
             }
         );
     }
@@ -613,8 +655,14 @@ mod test {
             result.unwrap(),
             Choice {
                 lang: None,
-                surface: "JHWH".to_string(),
-                expansion: "Jahwe".to_string()
+                surface: AbbrSurface {
+                    lang: None,
+                    content: "JHWH".to_string(),
+                },
+                expansion: AbbrExpansion {
+                    lang: None,
+                    content: "Jahwe".to_string(),
+                },
             }
         );
     }
@@ -629,8 +677,14 @@ mod test {
             result.unwrap(),
             Choice {
                 lang: None,
-                surface: "JHWH".to_string(),
-                expansion: "Jahwe".to_string()
+                surface: AbbrSurface {
+                    lang: None,
+                    content: "JHWH".to_string(),
+                },
+                expansion: AbbrExpansion {
+                    lang: None,
+                    content: "Jahwe".to_string(),
+                },
             }
         );
     }
@@ -890,8 +944,14 @@ mod test {
             result.unwrap(),
             TextDamageOrChoice::Choice(Choice {
                 lang: None,
-                surface: "JHWH".to_string(),
-                expansion: "Jahwe".to_string()
+                surface: AbbrSurface {
+                    lang: None,
+                    content: "JHWH".to_string(),
+                },
+                expansion: AbbrExpansion {
+                    lang: None,
+                    content: "Jahwe".to_string(),
+                },
             })
         );
     }
@@ -953,8 +1013,14 @@ mod test {
                 lang: None,
                 value: TextDamageOrChoice::Choice(Choice {
                     lang: None,
-                    surface: "JHWH".to_string(),
-                    expansion: "Jahwe".to_string()
+                    surface: AbbrSurface {
+                        lang: None,
+                        content: "JHWH".to_string(),
+                    },
+                    expansion: AbbrExpansion {
+                        lang: None,
+                        content: "Jahwe".to_string(),
+                    },
                 })
             })
         );
@@ -972,8 +1038,14 @@ mod test {
                 lang: Some("hbo-Hebr-x-babli".to_string()),
                 value: TextDamageOrChoice::Choice(Choice {
                     lang: None,
-                    surface: "JHWH".to_string(),
-                    expansion: "Jahwe".to_string()
+                    surface: AbbrSurface {
+                        lang: None,
+                        content: "JHWH".to_string(),
+                    },
+                    expansion: AbbrExpansion {
+                        lang: None,
+                        content: "Jahwe".to_string(),
+                    },
                 })
             })
         );
@@ -1565,8 +1637,14 @@ mod test {
                                             value: TextDamageOrChoice::Choice(
                                                 Choice {
                                                     lang: None,
-                                                    surface: "JHWH".to_string(),
-                                                    expansion: "Jahwe".to_string(),
+                                                    surface: AbbrSurface {
+                                                        lang: None,
+                                                        content: "JHWH".to_string(),
+                                                    },
+                                                    expansion: AbbrExpansion {
+                                                        lang: None,
+                                                        content: "Jahwe".to_string(),
+                                                    },
                                                 },
                                             ),
                                         },
@@ -1707,6 +1785,20 @@ mod test {
         let deser: Damage = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(expected, deser);
         let ser = quick_xml::se::to_string_with_root("damage", &deser).unwrap();
+        assert_eq!(ser, xml);
+    }
+
+    #[test]
+    fn choice_with_complex_languages() {
+        let xml = r#"<choice xml:lang="IRRELEVANT"><abbr xml:lang="grc">πιπι</abbr><expan xml:lang="hbo-Hebr">יהוה</expan></choice>"#;
+        let expected = Choice {
+            lang: Some("IRRELEVANT".to_string()),
+            surface: AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
+            expansion: AbbrExpansion { lang: Some("hbo-Hebr".to_string()), content: "יהוה".to_string() },
+        };
+        let deser: Choice = quick_xml::de::from_str(&xml).unwrap();
+        assert_eq!(expected, deser);
+        let ser = quick_xml::se::to_string_with_root("choice", &deser).unwrap();
         assert_eq!(ser, xml);
     }
 }

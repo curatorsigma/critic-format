@@ -237,14 +237,28 @@ impl From<(String, normalized::Version)> for streamed::Version {
 
 impl From<(String, normalized::Abbreviation)> for streamed::Abbreviation {
     fn from(value: (String, normalized::Abbreviation)) -> Self {
+        // default language is value.0
+        // language set on the entire normalized abbreviation is value.1.lang (OPTION)
+        // language set on the individual arms are value.1.surface.lang, etc.
+        let surface_lang = if let Some(n_surface_lang) = value.1.surface.lang {
+            n_surface_lang
+        } else if let Some(ref n_abbr_lang) = value.1.lang {
+            n_abbr_lang.clone()
+        } else {
+            value.0.clone()
+        };
+        let expansion_lang = if let Some(n_expansion_lang) = value.1.expansion.lang {
+            n_expansion_lang
+        } else if let Some(n_abbr_lang) = value.1.lang {
+            n_abbr_lang
+        } else {
+            value.0.clone()
+        };
         Self {
-            lang: if let Some(a_lang) = value.1.lang {
-                a_lang
-            } else {
-                value.0.clone()
-            },
-            surface: value.1.surface,
-            expansion: value.1.expansion,
+            surface_lang,
+            expansion_lang,
+            surface: value.1.surface.content,
+            expansion: value.1.expansion.content,
         }
     }
 }
@@ -593,10 +607,22 @@ impl From<streamed::Correction> for normalized::Correction {
 }
 impl From<streamed::Abbreviation> for normalized::Abbreviation {
     fn from(value: streamed::Abbreviation) -> Self {
+        // the language of the entire abbreviation is the one used in the expansion
+        // if the surface has another language, it is specifically set here
         normalized::Abbreviation {
-            lang: Some(value.lang),
-            surface: value.surface,
-            expansion: value.expansion,
+            surface: crate::schema::AbbrSurface {
+                lang: if value.expansion_lang != value.surface_lang {
+                    Some(value.surface_lang)
+                } else {
+                    None
+                },
+                content: value.surface,
+            },
+            expansion: crate::schema::AbbrExpansion {
+                lang: None,
+                content: value.expansion,
+            },
+            lang: Some(value.expansion_lang),
         }
     }
 }
@@ -624,6 +650,7 @@ impl From<streamed::Paragraph> for normalized::Paragraph {
 #[cfg(test)]
 mod test {
     use crate::normalized;
+    use crate::normalized::Abbreviation;
     use crate::streamed;
 
     /// We should be able to stream a normalized text
@@ -1041,5 +1068,53 @@ mod test {
             content: "content".to_string(),
         })];
         assert_eq!(streamed, expected);
+    }
+
+    /// Language should get normalized while streaming/destreaming
+    #[test]
+    fn choice_language() {
+        let normalized: normalized::Text = normalized::Text {
+            lang: "lang".to_string(),
+            columns: vec![normalized::Column {
+                lang: None,
+                n: 1,
+                lines: vec![normalized::Line {
+                    lang: None,
+                    n: 1,
+                    blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
+                        lang: Some("IRRELEVANT".to_string()),
+                        surface: crate::schema::AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
+                        expansion: crate::schema::AbbrExpansion { lang: Some("hbo-Hebr".to_string()), content: "יהוה".to_string() },
+                    })],
+                }],
+            }],
+        };
+        let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
+        let expected = vec![streamed::Block::Abbreviation(streamed::Abbreviation{
+            surface_lang: "grc".to_string(),
+            surface: "πιπι".to_string(),
+            expansion_lang: "hbo-Hebr".to_string(),
+            expansion: "יהוה".to_string(),
+        })];
+        assert_eq!(streamed, expected);
+
+        let destreamed: normalized::Text = streamed.try_into().unwrap();
+        let expected_destreamed: normalized::Text = normalized::Text {
+            lang: "hbo-Hebr".to_string(),
+            columns: vec![normalized::Column {
+                lang: None,
+                n: 1,
+                lines: vec![normalized::Line {
+                    lang: None,
+                    n: 1,
+                    blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
+                        lang: None,
+                        surface: crate::schema::AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
+                        expansion: crate::schema::AbbrExpansion { lang: None, content: "יהוה".to_string() },
+                    })],
+                }],
+            }],
+        };
+        assert_eq!(destreamed, expected_destreamed);
     }
 }

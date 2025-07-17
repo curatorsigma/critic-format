@@ -539,8 +539,14 @@ mod test {
                                 crate::normalized::InlineBlock::Abbreviation(
                                     crate::normalized::Abbreviation {
                                         lang: None,
-                                        surface: "JHWH".to_string(),
-                                        expansion: "Jahwe".to_string(),
+                                        surface: crate::schema::AbbrSurface {
+                                            lang: None,
+                                            content: "JHWH".to_string(),
+                                        },
+                                        expansion: crate::schema::AbbrExpansion {
+                                            lang: None,
+                                            content: "Jahwe".to_string(),
+                                        },
                                     },
                                 ),
                                 crate::normalized::InlineBlock::Correction(

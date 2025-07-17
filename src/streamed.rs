@@ -47,7 +47,11 @@ impl Block {
             Self::Text(Paragraph { lang: x, .. })
             | Self::Correction(Correction { lang: x, .. })
             | Self::Uncertain(Uncertain { lang: x, .. })
-            | Self::Abbreviation(Abbreviation { lang: x, .. }) => Some(x),
+            // we consider an abbreviations language to be that of the expansion
+            // not that of the surface form. e.g. the πιπι for יהוה abbreviation is part of
+            // hbo-Hebr text and therefor should not have its language determined by the fact that
+            // πιπι is in grc
+            | Self::Abbreviation(Abbreviation { expansion_lang: x, .. }) => Some(x),
         }
     }
 }
@@ -86,9 +90,10 @@ impl FromTypeLangAndContent for Block {
         match block_type {
             BlockType::Text => Self::Text(Paragraph { lang, content }),
             BlockType::Abbreviation => Self::Abbreviation(Abbreviation {
-                lang,
                 surface: content.clone(),
+                surface_lang: lang.clone(),
                 expansion: content,
+                expansion_lang: lang,
             }),
             BlockType::Break => Self::Break(BreakType::default()),
             BlockType::Lacuna => Self::Lacuna(Lacuna {
@@ -197,12 +202,19 @@ pub struct Uncertain {
 }
 
 /// An expanded abbreviation.
+///
+/// NOTE:
+/// it is common to see abbreviations such as πιπι for יהוה
+/// We signal the differing languages by having two lang attributes here: one for the surface form,
+/// one for the expanded form.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Abbreviation {
-    /// The language of this abbreviation
-    pub lang: String,
+    /// The language of the surface form of this abbreviation
+    pub surface_lang: String,
     /// The surface form (the abbreviation) present in the manuscript
     pub surface: String,
+    /// The language of the expanded form of this abbreviation
+    pub expansion_lang: String,
     /// The expanded form supplied by the transcriber
     pub expansion: String,
 }

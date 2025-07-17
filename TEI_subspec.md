@@ -63,7 +63,6 @@ All of the above phenomena MUST be represented without emandation. See the later
 - BCP47 Codes MUST be used to define the source language.
     - Common Codes used for the transcription of biblical manuscripts are:
         - `hbo-Hebr`, `hbo-Phnx`, `smp-Hebr`, `grc`
-- When language changes within a line, the `xml:lang` MUST be applied to the `p` tag directly surrounding the text.
 
 ## Text Structure
 Text is structured as two levels of nested divs:
