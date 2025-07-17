@@ -183,15 +183,24 @@ Instead of missing characters, a `<gap>` element MUST be used, directly inside t
 ## Ancient Corrections
 When multiple ancient surface forms are present in a place, these rules apply.
 Versions are here considered in (conjectured) temporal order.
-- e.g. When a Word was written by Scribe1, struck through by Scribe2 and then another word written atop it by Scribe3, there are three distinct versions.
-
-All different ancient versions (the first, and all different corrections) MUST be given separately.
-The entire passage in question MUST be wrapped in `<app>`.
-Every individual version MUST be given in `<rdg>`. `@hand` SHOULD be given for all `<rdg>`s. `@varSeq` MUST be given for all `<rdg>`s and mark them in (conjectured) temporal order.
-The text in `<rdg>` MUST be normal text without additional markup elements.
+So when a word was written by Scribe1, struck through by Scribe2 and then another word written atop it by Scribe3, there are three distinct versions.
+- All different ancient versions (the first, and all different corrections) MUST be given separately.
+- The entire passage in question MUST be wrapped in `<app>`.
+- Every individual version MUST be given in `<rdg>`.
+- `@hand` SHOULD be given for all `<rdg>`s.
+- `@varSeq` MUST be given for all `<rdg>`s and mark them in (conjectured) temporal order. `@varSeq` MUST NOT contain additional semantic information. Normalization MAY turn it into zero-based indices.
+- The text in `<rdg>` MUST be normal text without additional markup elements.
 
 If part of the text in any of the versions is lacunous, exclude it from its reading. Instead, add a lacuna after the entire correction.
 If part of the text in any of the versions is damaged but legible, simply add it without markup.
+
+## Significant space
+When a significant space is left in the ancient manuscript, this MUST be recorded using the `<space>` element.
+- normal spacing between words MUST NOT be recorded
+- space MUST be recorded if it is both (1) large enough to fit two full-width-characters (i.e. ignoring punctuation or `י`) and (2) the normal word-spacing of the manuscript is smaller then this space.
+- space MUST be recorded if it spans an entire line or more
+- the `@quantity` MUST be given
+- `@unit` MUST be given and MUST be one of `character`, `line`, `column`
 
 ## Nonstandard Glyphs and Diacritica
 ### Non-Tiberian Niqud

@@ -36,16 +36,18 @@ pub enum Block {
     Text(Paragraph),
     /// A correction in the manuscript - where one scribal hand has overwritte / struck through / .. a text that was present earlier
     Correction(Correction),
-    // A part of text that is damaged but still legible
+    /// A part of text that is damaged but still legible
     Uncertain(Uncertain),
-    // An expanded abbreviation
+    /// An expanded abbreviation
     Abbreviation(Abbreviation),
+    /// A bit of Whitespace
+    Space(Space),
 }
 impl Block {
     #[must_use]
     pub fn language(&self) -> Option<&str> {
         match self {
-            Self::Break(_) | Self::Lacuna(_) | Self::Anchor(_) => None,
+            Self::Space(_) | Self::Break(_) | Self::Lacuna(_) | Self::Anchor(_) => None,
             Self::Text(Paragraph { lang: x, .. })
             | Self::Uncertain(Uncertain { lang: x, .. })
             // we consider an abbreviations language to be that of the expansion
@@ -240,4 +242,5 @@ pub struct Abbreviation {
     pub expansion: String,
 }
 
+pub type Space = crate::normalized::Space;
 pub type ExtentUnit = normalized::ExtentUnit;

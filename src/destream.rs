@@ -139,6 +139,28 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
                             res.push(streamed_block);
                             continue 'col;
                         }
+                        // now we do the exact same thing for spaces
+                        streamed::Block::Space(streamed::Space {
+                            unit: normalized::ExtentUnit::Line,
+                            quantity,
+                            ..
+                        }) => {
+                            line_idx += quantity + 1;
+                            res.push(streamed_block);
+                            continue 'line;
+                        }
+                        // a lacuna spanning multiple columns.
+                        // we increment the column-nr by the appropriate amount and continue
+                        // streaming from the next column defined in the xml
+                        streamed::Block::Space(streamed::Space {
+                            unit: normalized::ExtentUnit::Column,
+                            quantity,
+                            ..
+                        }) => {
+                            col_idx += quantity + 1;
+                            res.push(streamed_block);
+                            continue 'col;
+                        }
                         _ => {}
                     }
                     res.push(streamed_block);
@@ -186,6 +208,7 @@ impl TryFrom<(String, normalized::InlineBlock)> for streamed::Block {
             normalized::InlineBlock::Abbreviation(x) => {
                 streamed::Block::Abbreviation((value.0, x).into())
             }
+            normalized::InlineBlock::Space(x) => streamed::Block::Space(x),
         })
     }
 }
@@ -403,7 +426,9 @@ fn end_column(
 
 /// Add a block to the datastructure, update language use and forward line and column indexes when
 /// a line or column is ended by this block
-#[allow(clippy::too_many_arguments)]
+// this function is admittedly ugly - however, most of it is is one large match statement which
+// does not refactor into meaningful functions
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn handle_block(
     block: streamed::Block,
     blocks_in_line: &mut Vec<normalized::InlineBlock>,
@@ -442,6 +467,53 @@ fn handle_block(
                 column_idx,
                 language_use_in_col,
             );
+        }
+        // end this line, skip several, start a new one
+        streamed::Block::Space(
+            s @ streamed::Space {
+                unit: streamed::ExtentUnit::Line,
+                quantity: extent,
+            },
+        ) => {
+            // first push the lacuna itself as a block
+            blocks_in_line.push(normalized::InlineBlock::Space(s));
+            // then end the line
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+            // skip `extent` lines
+            *line_idx += extent;
+        }
+        // end this column, skip several, start a new one
+        streamed::Block::Space(
+            s @ streamed::Space {
+                unit: streamed::ExtentUnit::Column,
+                quantity: extent,
+                ..
+            },
+        ) => {
+            // first push the space itself as a block
+            blocks_in_line.push(normalized::InlineBlock::Space(s));
+            // then end the line
+            end_line(
+                lines,
+                core::mem::take(blocks_in_line),
+                line_idx,
+                language_use_in_line,
+            );
+
+            // and finally end the column, skip some and and go to the next one
+            end_column(
+                columns,
+                core::mem::take(lines),
+                line_idx,
+                column_idx,
+                language_use_in_col,
+            );
+            *column_idx += extent;
         }
         // end this line, skip several, start a new one
         streamed::Block::Lacuna(
@@ -495,8 +567,21 @@ fn handle_block(
         streamed::Block::Text(x) => {
             blocks_in_line.push(normalized::InlineBlock::Text(x.into()));
         }
-        streamed::Block::Lacuna(l) => {
+        streamed::Block::Lacuna(
+            l @ streamed::Lacuna {
+                unit: streamed::ExtentUnit::Character,
+                ..
+            },
+        ) => {
             blocks_in_line.push(normalized::InlineBlock::Lacuna(l));
+        }
+        streamed::Block::Space(
+            s @ streamed::Space {
+                unit: streamed::ExtentUnit::Character,
+                ..
+            },
+        ) => {
+            blocks_in_line.push(normalized::InlineBlock::Space(s));
         }
         streamed::Block::Uncertain(x) => {
             blocks_in_line.push(normalized::InlineBlock::Uncertain(x.into()));
@@ -549,7 +634,9 @@ fn normalize_language<'b>(
             // unset the block language if it is the same as line lang
             for block in &mut line.blocks {
                 match block {
-                    normalized::InlineBlock::Lacuna(_) | normalized::InlineBlock::Anchor(_) => {}
+                    normalized::InlineBlock::Space(_)
+                    | normalized::InlineBlock::Lacuna(_)
+                    | normalized::InlineBlock::Anchor(_) => {}
                     normalized::InlineBlock::Text(x) => {
                         if x.lang == line_lang {
                             x.lang = None;
@@ -739,6 +826,22 @@ mod test {
         let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
         assert!(norm_res.is_ok());
         let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        assert!(streamed_res.is_ok());
+        let streamed = streamed_res.unwrap();
+
+        let destreamed: Result<normalized::Manuscript, _> = streamed.clone().try_into();
+        assert!(destreamed.is_ok());
+        let restreamed: Result<streamed::Manuscript, _> = destreamed.unwrap().try_into();
+        assert!(restreamed.is_ok());
+        assert_eq!(streamed, restreamed.unwrap());
+
+        let xml = include_str!("../examples/05_with_nontrivial_space.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        dbg!(&streamed_res);
         assert!(streamed_res.is_ok());
         let streamed = streamed_res.unwrap();
 

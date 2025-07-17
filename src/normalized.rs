@@ -75,12 +75,13 @@ pub enum InlineBlock {
     Text(Paragraph),
     Uncertain(Uncertain),
     Abbreviation(Abbreviation),
+    Space(Space),
 }
 impl InlineBlock {
     #[must_use]
     pub fn language(&self) -> Option<&str> {
         match self {
-            Self::Lacuna(_) | Self::Anchor(_) => None,
+            Self::Space(_) | Self::Lacuna(_) | Self::Anchor(_) => None,
             Self::Correction(x) => x.lang.as_deref(),
             Self::Text(x) => x.lang.as_deref(),
             Self::Uncertain(x) => x.lang.as_deref(),
@@ -145,4 +146,5 @@ pub struct Version {
 }
 
 pub type Lacuna = crate::schema::Gap;
+pub type Space = crate::schema::Space;
 pub type ExtentUnit = crate::schema::ExtentUnit;

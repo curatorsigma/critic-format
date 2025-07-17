@@ -321,13 +321,16 @@ pub enum InlineBlock {
     /// A correction in the manuscript - where one scribal hand has overwritte / struck through / .. a text that was present earlier
     #[serde(rename = "app")]
     App(App),
+    /// A bit of significant space
+    #[serde(rename = "space")]
+    Space(Space),
 }
 impl InlineBlock {
     /// Trim whitespace from all text fields
     #[must_use]
     pub fn trim(self) -> Self {
         match self {
-            Self::Gap(_) | Self::Anchor(_) => self,
+            Self::Space(_) | Self::Gap(_) | Self::Anchor(_) => self,
             Self::P(x) => Self::P(x.trim()),
             Self::App(x) => Self::App(x.trim()),
         }
@@ -565,6 +568,25 @@ impl Default for Gap {
             n: 1,
             reason: String::default(),
             cert: None,
+        }
+    }
+}
+
+/// A bit of significant space in the manuscript
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Space {
+    /// The size of this whitespace in multiples of the given [`unit`](Self::unit)
+    #[serde(rename = "@quantity")]
+    pub quantity: i32,
+    /// The unit for this whitespace.
+    #[serde(rename = "@unit")]
+    pub unit: ExtentUnit,
+}
+impl Default for Space {
+    fn default() -> Self {
+        Self {
+            quantity: 2,
+            unit: ExtentUnit::Character,
         }
     }
 }
@@ -1822,6 +1844,19 @@ mod test {
         let deser: Choice = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(expected, deser);
         let ser = quick_xml::se::to_string_with_root("choice", &deser).unwrap();
+        assert_eq!(ser, xml);
+    }
+
+    #[test]
+    fn space() {
+        let xml = r#"<space quantity="7" unit="character"/>"#;
+        let expected = Space {
+            quantity: 7,
+            unit: ExtentUnit::Character,
+        };
+        let deser: Space = quick_xml::de::from_str(&xml).unwrap();
+        assert_eq!(expected, deser);
+        let ser = quick_xml::se::to_string_with_root("space", &deser).unwrap();
         assert_eq!(ser, xml);
     }
 }

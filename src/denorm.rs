@@ -237,6 +237,7 @@ impl TryFrom<schema::InlineBlock> for normalized::InlineBlock {
             schema::InlineBlock::Gap(x) => normalized::InlineBlock::Lacuna(x),
             schema::InlineBlock::Anchor(x) => normalized::InlineBlock::Anchor(x.into()),
             schema::InlineBlock::App(x) => normalized::InlineBlock::Correction(x.into()),
+            schema::InlineBlock::Space(x) => normalized::InlineBlock::Space(x),
         })
     }
 }
@@ -390,6 +391,7 @@ impl TryFrom<normalized::InlineBlock> for schema::InlineBlock {
             }
             normalized::InlineBlock::Anchor(x) => schema::InlineBlock::Anchor(x.into()),
             normalized::InlineBlock::Correction(x) => schema::InlineBlock::App(x.try_into()?),
+            normalized::InlineBlock::Space(x) => schema::InlineBlock::Space(x),
         })
     }
 }
