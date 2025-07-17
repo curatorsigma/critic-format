@@ -433,7 +433,7 @@ impl Damage {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Choice {
     /// The language set on the `<choice>` element
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The surface form (the abbreviation) present in the manuscript
     #[serde(rename = "abbr")]
@@ -456,7 +456,7 @@ impl Choice {
 /// The surface form of the abbreviation
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct AbbrSurface {
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     #[serde(rename = "$text")]
     pub content: String,
@@ -473,7 +473,7 @@ impl AbbrSurface {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct AbbrExpansion {
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     #[serde(rename = "$text")]
     pub content: String,
@@ -1793,6 +1793,23 @@ mod test {
         let xml = r#"<choice xml:lang="IRRELEVANT"><abbr xml:lang="grc">πιπι</abbr><expan xml:lang="hbo-Hebr">יהוה</expan></choice>"#;
         let expected = Choice {
             lang: Some("IRRELEVANT".to_string()),
+            surface: AbbrSurface {
+                lang: Some("grc".to_string()),
+                content: "πιπι".to_string(),
+            },
+            expansion: AbbrExpansion {
+                lang: Some("hbo-Hebr".to_string()),
+                content: "יהוה".to_string(),
+            },
+        };
+        let deser: Choice = quick_xml::de::from_str(&xml).unwrap();
+        assert_eq!(expected, deser);
+        let ser = quick_xml::se::to_string_with_root("choice", &deser).unwrap();
+        assert_eq!(ser, xml);
+
+        let xml = r#"<choice><abbr xml:lang="grc">πιπι</abbr><expan xml:lang="hbo-Hebr">יהוה</expan></choice>"#;
+        let expected = Choice {
+            lang: None,
             surface: AbbrSurface {
                 lang: Some("grc".to_string()),
                 content: "πιπι".to_string(),
