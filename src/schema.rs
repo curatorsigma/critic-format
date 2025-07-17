@@ -1793,8 +1793,14 @@ mod test {
         let xml = r#"<choice xml:lang="IRRELEVANT"><abbr xml:lang="grc">πιπι</abbr><expan xml:lang="hbo-Hebr">יהוה</expan></choice>"#;
         let expected = Choice {
             lang: Some("IRRELEVANT".to_string()),
-            surface: AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
-            expansion: AbbrExpansion { lang: Some("hbo-Hebr".to_string()), content: "יהוה".to_string() },
+            surface: AbbrSurface {
+                lang: Some("grc".to_string()),
+                content: "πιπι".to_string(),
+            },
+            expansion: AbbrExpansion {
+                lang: Some("hbo-Hebr".to_string()),
+                content: "יהוה".to_string(),
+            },
         };
         let deser: Choice = quick_xml::de::from_str(&xml).unwrap();
         assert_eq!(expected, deser);

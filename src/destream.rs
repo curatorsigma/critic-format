@@ -611,10 +611,10 @@ impl From<streamed::Abbreviation> for normalized::Abbreviation {
         // if the surface has another language, it is specifically set here
         normalized::Abbreviation {
             surface: crate::schema::AbbrSurface {
-                lang: if value.expansion_lang != value.surface_lang {
-                    Some(value.surface_lang)
-                } else {
+                lang: if value.expansion_lang == value.surface_lang {
                     None
+                } else {
+                    Some(value.surface_lang)
                 },
                 content: value.surface,
             },
@@ -1083,14 +1083,20 @@ mod test {
                     n: 1,
                     blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
                         lang: Some("IRRELEVANT".to_string()),
-                        surface: crate::schema::AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
-                        expansion: crate::schema::AbbrExpansion { lang: Some("hbo-Hebr".to_string()), content: "יהוה".to_string() },
+                        surface: crate::schema::AbbrSurface {
+                            lang: Some("grc".to_string()),
+                            content: "πιπι".to_string(),
+                        },
+                        expansion: crate::schema::AbbrExpansion {
+                            lang: Some("hbo-Hebr".to_string()),
+                            content: "יהוה".to_string(),
+                        },
                     })],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
-        let expected = vec![streamed::Block::Abbreviation(streamed::Abbreviation{
+        let expected = vec![streamed::Block::Abbreviation(streamed::Abbreviation {
             surface_lang: "grc".to_string(),
             surface: "πιπι".to_string(),
             expansion_lang: "hbo-Hebr".to_string(),
@@ -1109,8 +1115,14 @@ mod test {
                     n: 1,
                     blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
                         lang: None,
-                        surface: crate::schema::AbbrSurface { lang: Some("grc".to_string()), content: "πιπι".to_string() },
-                        expansion: crate::schema::AbbrExpansion { lang: None, content: "יהוה".to_string() },
+                        surface: crate::schema::AbbrSurface {
+                            lang: Some("grc".to_string()),
+                            content: "πιπι".to_string(),
+                        },
+                        expansion: crate::schema::AbbrExpansion {
+                            lang: None,
+                            content: "יהוה".to_string(),
+                        },
                     })],
                 }],
             }],
