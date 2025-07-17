@@ -492,7 +492,7 @@ impl AbbrExpansion {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct App {
     /// The language set on the `<app>` element
-    #[serde(rename = "@xml:lang")]
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// A list of different readings. Each form this manuscript had at one point should get its own
     /// reading and be written out in its entirety here.
