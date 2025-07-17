@@ -86,10 +86,12 @@ pub enum BlockType {
     Text,
     /// A correction in the manuscript - where one scribal hand has overwritte / struck through / .. a text that was present earlier
     Correction,
-    // A part of text that is damaged but still legible
+    /// A part of text that is damaged but still legible
     Uncertain,
-    // An expanded abbreviation
+    /// An expanded abbreviation
     Abbreviation,
+    /// A bit of whitespace in the manuscript
+    Space,
 }
 impl FromTypeLangAndContent for Block {
     fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self {
@@ -102,6 +104,7 @@ impl FromTypeLangAndContent for Block {
                 expansion_lang: lang,
             }),
             BlockType::Break => Self::Break(BreakType::default()),
+            BlockType::Space => Self::Space(Space::default()),
             BlockType::Lacuna => Self::Lacuna(Lacuna {
                 unit: ExtentUnit::default(),
                 n: 1,
