@@ -6,6 +6,8 @@
 //! with column and line breaks being blocks themselves. These types represents the data as seen in
 //! the editor.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::normalized;
@@ -45,13 +47,15 @@ impl Block {
         match self {
             Self::Break(_) | Self::Lacuna(_) | Self::Anchor(_) => None,
             Self::Text(Paragraph { lang: x, .. })
-            | Self::Correction(Correction { lang: x, .. })
             | Self::Uncertain(Uncertain { lang: x, .. })
             // we consider an abbreviations language to be that of the expansion
             // not that of the surface form. e.g. the πιπι for יהוה abbreviation is part of
             // hbo-Hebr text and therefor should not have its language determined by the fact that
             // πιπι is in grc
             | Self::Abbreviation(Abbreviation { expansion_lang: x, .. }) => Some(x),
+            Self::Correction(correction) => {
+                correction.lang()
+            }
         }
     }
 }
@@ -110,7 +114,6 @@ impl FromTypeLangAndContent for Block {
                 content: content.to_string(),
             }),
             BlockType::Correction => Self::Correction(Correction {
-                lang: lang.clone(),
                 versions: vec![Version {
                     lang,
                     hand: None,
@@ -169,11 +172,29 @@ pub type Anchor = normalized::Anchor;
 /// An ancient correction.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Correction {
-    /// The language of this correction
-    pub lang: String,
     /// A list of different readings. Each form this manuscript had at one point should get its own
     /// reading and be written out in its entirety here.
     pub versions: Vec<Version>,
+}
+impl Correction {
+    /// A correction has a language if it has at least one version
+    ///
+    /// This is the language which is held by the highest number of versions
+    #[must_use]
+    pub fn lang(&self) -> Option<&str> {
+        let mut langs_with_occurrances = HashMap::<&str, u32>::new();
+        for version in &self.versions {
+            if let Some(this_lang_count) = langs_with_occurrances.get_mut(&*version.lang) {
+                *this_lang_count += 1;
+            } else {
+                langs_with_occurrances.insert(&version.lang, 1);
+            }
+        }
+        langs_with_occurrances
+            .iter()
+            .max_by(|a, b| a.1.cmp(b.1))
+            .map(|(k, _)| *k)
+    }
 }
 
 /// An individual reading (version) inside a correction.

@@ -208,11 +208,6 @@ impl From<(String, normalized::Uncertain)> for streamed::Uncertain {
 impl From<(String, normalized::Correction)> for streamed::Correction {
     fn from(value: (String, normalized::Correction)) -> Self {
         Self {
-            lang: if let Some(c_lang) = value.1.lang {
-                c_lang
-            } else {
-                value.0.clone()
-            },
             versions: core::iter::repeat(value.0)
                 .zip(value.1.versions)
                 .map(core::convert::Into::into)
@@ -592,7 +587,7 @@ fn normalize_language<'b>(
 impl From<streamed::Correction> for normalized::Correction {
     fn from(value: streamed::Correction) -> Self {
         normalized::Correction {
-            lang: Some(value.lang),
+            lang: value.lang().map(std::string::ToString::to_string),
             versions: value
                 .versions
                 .into_iter()
@@ -1128,5 +1123,53 @@ mod test {
             }],
         };
         assert_eq!(destreamed, expected_destreamed);
+    }
+
+    #[test]
+    fn correction_language() {
+        let normalized: normalized::Text = normalized::Text {
+            lang: "hbo-Hebr".to_string(),
+            columns: vec![normalized::Column {
+                lang: None,
+                n: 1,
+                lines: vec![normalized::Line {
+                    lang: None,
+                    n: 1,
+                    blocks: vec![normalized::InlineBlock::Correction(
+                        normalized::Correction {
+                            lang: None,
+                            versions: vec![
+                                normalized::Version {
+                                    lang: None,
+                                    hand: None,
+                                    content: "יהוה".to_string(),
+                                },
+                                normalized::Version {
+                                    lang: Some("hbo-Phnx".to_string()),
+                                    hand: None,
+                                    content: "𐤉𐤄𐤅𐤄".to_string(),
+                                },
+                            ],
+                        },
+                    )],
+                }],
+            }],
+        };
+        let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
+        let expected = vec![streamed::Block::Correction(streamed::Correction {
+            versions: vec![
+                streamed::Version {
+                    lang: "hbo-Hebr".to_string(),
+                    hand: None,
+                    content: "יהוה".to_string(),
+                },
+                streamed::Version {
+                    lang: "hbo-Phnx".to_string(),
+                    hand: None,
+                    content: "𐤉𐤄𐤅𐤄".to_string(),
+                },
+            ],
+        })];
+        assert_eq!(streamed, expected);
     }
 }
