@@ -767,8 +767,8 @@ mod test {
                 title: "Manuskript Name folio 34 verso.".to_string(),
                 institution: Some("University of does-not-exist".to_string()),
                 collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
-                hand_desc: "There are two recognizable Hands: hand1 and hand2.".to_string(),
-                script_desc: "Die Schrift in diesem Manuskript gibt es.".to_string(),
+                hand_desc: Some("There are two recognizable Hands: hand1 and hand2.".to_string()),
+                script_desc: Some("Die Schrift in diesem Manuskript gibt es.".to_string()),
             },
             content: vec![
                 streamed::Block::Text(streamed::Paragraph {

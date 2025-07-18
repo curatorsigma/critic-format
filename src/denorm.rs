@@ -112,14 +112,14 @@ impl TryFrom<schema::TeiHeader> for normalized::Meta {
                 .ms_desc
                 .phys_desc
                 .hand_desc
-                .summary,
+                .map(|d| d.summary),
             script_desc: value
                 .file_desc
                 .source_desc
                 .ms_desc
                 .phys_desc
                 .script_desc
-                .summary,
+                .map(|d| d.summary),
         })
     }
 }
@@ -305,12 +305,10 @@ impl From<normalized::Meta> for schema::TeiHeader {
                             page_nr: value.page_nr,
                         },
                         phys_desc: schema::PhysDesc {
-                            hand_desc: schema::HandDesc {
-                                summary: value.hand_desc,
-                            },
-                            script_desc: schema::ScriptDesc {
-                                summary: value.script_desc,
-                            },
+                            hand_desc: value.hand_desc.map(|d| schema::HandDesc { summary: d }),
+                            script_desc: value
+                                .script_desc
+                                .map(|d| schema::ScriptDesc { summary: d }),
                         },
                     },
                 },
@@ -452,8 +450,8 @@ mod test {
                 title: "Manuskript Name folio 34 verso.".to_string(),
                 institution: Some("University of does-not-exist".to_string()),
                 collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
-                hand_desc: "There are two recognizable Hands: hand1 and hand2.".to_string(),
-                script_desc: "Die Schrift in diesem Manuskript gibt es.".to_string(),
+                hand_desc: Some("There are two recognizable Hands: hand1 and hand2.".to_string()),
+                script_desc: Some("Die Schrift in diesem Manuskript gibt es.".to_string()),
             },
             text: crate::normalized::Text {
                 lang: "hbo-Hebr".to_string(),

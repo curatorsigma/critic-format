@@ -14,7 +14,7 @@ pub struct Manuscript {
     pub text: Text,
 }
 
-/// TEI fileDesc element - descripbes this file.
+/// TEI fileDesc element - describes this file.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Meta {
     pub name: String,
@@ -24,8 +24,8 @@ pub struct Meta {
     pub title: String,
     pub institution: Option<String>,
     pub collection: Option<String>,
-    pub hand_desc: String,
-    pub script_desc: String,
+    pub hand_desc: Option<String>,
+    pub script_desc: Option<String>,
 }
 
 /// The entire transcribed text body

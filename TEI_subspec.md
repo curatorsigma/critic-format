@@ -41,7 +41,7 @@ The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined
         - `idno` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
         - `institution` SHOULD be given if relevant
         - `collection` MAY be given if relevant
-- `physDesc` MUST be given and contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
+- `physDesc` MUST be given and MAY contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
 
 # Representing the Text itself
 As a general rule of thumb, our goal is to reproduce the physical text as closely as possible.

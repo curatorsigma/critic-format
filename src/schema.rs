@@ -161,21 +161,21 @@ impl MsIdentifier {
 pub struct PhysDesc {
     /// Description of the scribal hands present in this manuscript
     #[serde(rename = "handDesc")]
-    pub hand_desc: HandDesc,
+    pub hand_desc: Option<HandDesc>,
     /// Description of the scripts present in this manuscript
     #[serde(rename = "scriptDesc")]
-    pub script_desc: ScriptDesc,
+    pub script_desc: Option<ScriptDesc>,
 }
 impl PhysDesc {
     #[must_use]
     pub fn trim(self) -> Self {
         Self {
-            hand_desc: HandDesc {
-                summary: trim_if_required(self.hand_desc.summary),
-            },
-            script_desc: ScriptDesc {
-                summary: trim_if_required(self.script_desc.summary),
-            },
+            hand_desc: self.hand_desc.map(|d| HandDesc {
+                summary: trim_if_required(d.summary),
+            }),
+            script_desc: self.script_desc.map(|d| ScriptDesc {
+                summary: trim_if_required(d.summary),
+            }),
         }
     }
 }
@@ -1522,12 +1522,12 @@ mod test {
                             page_nr: "34 verso".to_string(),
                         },
                         phys_desc: PhysDesc {
-                            hand_desc: HandDesc {
+                            hand_desc: Some(HandDesc {
                                 summary: "There are two recognizable Hands: hand1 and hand2.".to_string(),
-                            },
-                            script_desc: ScriptDesc {
+                            }),
+                            script_desc: Some(ScriptDesc {
                                 summary: "Die Schrift in diesem Manuskript gibt es.".to_string(),
-                            },
+                            }),
                         },
                     },
                 },
