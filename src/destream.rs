@@ -1,5 +1,4 @@
-//! Converting from [`normalized`](crate::normalized) to [`streamed`](crate::streamed)
-//! representation.
+//! Converting from [`normalized`] to [`streamed`] representation.
 //!
 //! In particular, insert or extract line and column breaks and create the corresponding hierarchy
 //! of blocks in the destreamed version.

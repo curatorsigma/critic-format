@@ -1,7 +1,7 @@
 //! Definition for the streamed representation of transcriptions.
 //!
 //! The text is hierarchically ordered into columns and lines in [`schema`](crate::schema) and
-//! [`normalized`](crate::normalized). However, the editor in
+//! [`normalized`]. However, the editor in
 //! [`critic`](https://github.com/curatorsigma/critic) has individual blocks as top-level elements,
 //! with column and line breaks being blocks themselves. These types represents the data as seen in
 //! the editor.

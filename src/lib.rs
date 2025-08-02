@@ -10,13 +10,26 @@ pub mod normalized;
 pub mod schema;
 pub mod streamed;
 
+/// The problems that can occur when converting XML to the internal formats.
 #[derive(Debug)]
 pub enum ConversionError {
+    /// Failed conversion from normalized to streamed form.
     Stream(StreamError),
+    /// Failed conversion from streamed to normalized form.
     DeStream(StreamError),
+    /// Failed conversion from schema to normalized form.
     Norm(NormalizationError),
+    /// Failed conversion from normalized to schema form.
     DeNorm(NormalizationError),
+    /// Failed serialization.
+    ///
+    /// This usually indicates a file that was changed since being written by
+    /// [`critic_format`](crate).
     Ser(quick_xml::SeError),
+    /// Failed deserialization.
+    ///
+    /// This indicates an ill-formed XML file.
+    /// It may adhere to the formal RNG schema, but not the actual TEI subspec.
     DeSer(quick_xml::DeError),
 }
 impl core::fmt::Display for ConversionError {
@@ -45,7 +58,11 @@ impl core::fmt::Display for ConversionError {
 }
 impl core::error::Error for ConversionError {}
 
-// direct conversion to/from XML in string form
+/// Directly Convert a Manuscript to XML.
+///
+/// # Errors
+/// Can only be [`DeStream`](ConversionError::DeStream), [`DeNorm`](ConversionError::DeNorm) and
+/// [`Ser`](ConversionError::Ser) variants.
 pub fn to_xml(ms: crate::streamed::Manuscript) -> Result<String, ConversionError> {
     let destreamed: crate::normalized::Manuscript =
         ms.try_into().map_err(ConversionError::DeStream)?;
@@ -57,15 +74,18 @@ pub fn to_xml(ms: crate::streamed::Manuscript) -> Result<String, ConversionError
     ))
 }
 
-// direct conversion to/from XML in string form
+/// Directly Convert from a [`BufRead`](std::io::BufRead) over XML data to a streamed Manuscript.
+///
+/// This combines deserialization, normalization and streaming.
+///
+/// # Errors
+/// Can only be [`Stream`](ConversionError::Stream), [`Norm`](ConversionError::Norm) and
+/// [`DeSer`](ConversionError::DeSer) variants.
 pub fn from_xml(buf_reader: impl std::io::BufRead) -> Result<Manuscript, ConversionError> {
-    let ds: crate::schema::Tei = quick_xml::de::from_reader(buf_reader)
-        .map_err(ConversionError::DeSer)?;
-    let normalized: crate::normalized::Manuscript =
-        ds.try_into().map_err(ConversionError::Norm)?;
-    normalized
-        .try_into()
-        .map_err(ConversionError::Stream)
+    let ds: crate::schema::Tei =
+        quick_xml::de::from_reader(buf_reader).map_err(ConversionError::DeSer)?;
+    let normalized: crate::normalized::Manuscript = ds.try_into().map_err(ConversionError::Norm)?;
+    normalized.try_into().map_err(ConversionError::Stream)
 }
 
 mod test {

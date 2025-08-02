@@ -160,10 +160,10 @@ impl MsIdentifier {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct PhysDesc {
     /// Description of the scribal hands present in this manuscript
-    #[serde(rename = "handDesc")]
+    #[serde(rename = "handDesc", skip_serializing_if = "Option::is_none")]
     pub hand_desc: Option<HandDesc>,
     /// Description of the scripts present in this manuscript
-    #[serde(rename = "scriptDesc")]
+    #[serde(rename = "scriptDesc", skip_serializing_if = "Option::is_none")]
     pub script_desc: Option<ScriptDesc>,
 }
 impl PhysDesc {
@@ -250,7 +250,7 @@ pub struct Column {
     #[serde(rename = "@type")]
     pub div_type: String,
     /// the column number
-    #[serde(rename = "@n")]
+    #[serde(rename = "@n", skip_serializing_if = "Option::is_none")]
     pub n: Option<i32>,
     /// The lines in this column
     #[serde(rename = "div")]
@@ -280,7 +280,7 @@ pub struct Line {
     #[serde(rename = "@type")]
     pub div_type: String,
     /// the line number
-    #[serde(rename = "@n")]
+    #[serde(rename = "@n", skip_serializing_if = "Option::is_none")]
     pub n: Option<i32>,
     /// The actual text elements contained in this line
     #[serde(rename = "$value")]
@@ -1858,5 +1858,17 @@ mod test {
         assert_eq!(expected, deser);
         let ser = quick_xml::se::to_string_with_root("space", &deser).unwrap();
         assert_eq!(ser, xml);
+    }
+
+    /// We should be able to parse files without HandDesc
+    #[test]
+    fn empty_hand_desc() {
+        let xml = include_str!("../examples/06_no_hand_desc.xml");
+        let result: Result<Tei, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        let tei = result.unwrap().trim();
+        let ser = quick_xml::se::to_string_with_root("TEI", &tei).unwrap();
+        let re_de: Tei = quick_xml::de::from_str(&ser).unwrap();
+        assert_eq!(re_de, tei);
     }
 }
