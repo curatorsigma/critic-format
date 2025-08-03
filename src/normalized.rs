@@ -17,23 +17,37 @@ pub struct Manuscript {
 /// TEI fileDesc element - describes this file.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Meta {
-    pub name: String,
-    /// number of the page (or folio/r-v)
-    pub page_nr: String,
-    /// Title of this manuscript
+    /// Name of this manuscript
     pub title: String,
+    /// the institution holding this MS
     pub institution: Option<String>,
+    /// the collection to which this MS belongs
     pub collection: Option<String>,
+    /// A description of the scribal hands that are present in this MS
     pub hand_desc: Option<String>,
+    /// A description of the script in use in this MS
     pub script_desc: Option<String>,
+    /// Other names for this MS
+    pub alt_identifier: Vec<String>,
 }
 
 /// The entire transcribed text body
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Text {
-    /// the default language for text in this manuscript
+    /// the default language for text in this MS
     pub lang: String,
-    /// The columns present in this text
+    /// The pages in this MS
+    pub pages: Vec<Page>,
+}
+
+/// An entire page
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct Page {
+    /// The default language of text in this page
+    pub lang: Option<String>,
+    /// the page number
+    pub n: String,
+    /// The columns present in this page
     pub columns: Vec<Column>,
 }
 

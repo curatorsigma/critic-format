@@ -26,11 +26,15 @@ pub enum NormalizationError {
     LineDivIncorrectType(String),
     /// The publication statement does not match the one given in [`PUBLICATION_STATEMENT`]
     PublicationStmtIncorrect,
-    /// The normalized version hat more then 2^32 - 1 versions for a single correction is thus not
+    /// The normalized version had more then 2^32 - 1 versions for a single correction and is thus not
     /// representable
     TooManyVersions,
     /// The body element of the xml file has not `@xml:lang` set
     NoDefaultLanguage,
+    /// Two pages were in the wrong order.
+    ///
+    /// last page - this page
+    PageNumbersNotOrdered(String, String),
 }
 impl core::fmt::Display for NormalizationError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -71,6 +75,12 @@ impl core::fmt::Display for NormalizationError {
             Self::NoDefaultLanguage => {
                 write!(f, "The xml text body has no \"@xml:lang\" set.")
             }
+            Self::PageNumbersNotOrdered(last, this) => {
+                write!(
+                    f,
+                    "The two pages {last} and {this} are in the wrong order or have the same name."
+                )
+            }
         }
     }
 }
@@ -96,8 +106,15 @@ impl TryFrom<schema::TeiHeader> for normalized::Meta {
             return Err(NormalizationError::PublicationStmtIncorrect);
         }
         Ok(Self {
-            name: value.file_desc.source_desc.ms_desc.ms_identifier.ms_name,
-            page_nr: value.file_desc.source_desc.ms_desc.ms_identifier.page_nr,
+            alt_identifier: value
+                .file_desc
+                .source_desc
+                .ms_desc
+                .ms_identifier
+                .alt_identifier
+                .into_iter()
+                .map(|a| a.idno.name)
+                .collect(),
             title: value.file_desc.title_stmt.title,
             institution: value
                 .file_desc
@@ -133,7 +150,39 @@ impl TryFrom<schema::Text> for normalized::Text {
                 .body
                 .lang
                 .ok_or(NormalizationError::NoDefaultLanguage)?,
-            columns: try_norm_columns(value.body.columns)?,
+            pages: try_norm_pages(value.body.pages)?,
+        })
+    }
+}
+
+/// Try to normalize pages
+///
+/// This can fail because two pages may be in the wrong order in the [`schema`] version, but this
+/// is no longer allowed in the [`normalized`] form.
+fn try_norm_pages(pages: Vec<schema::Page>) -> Result<Vec<normalized::Page>, NormalizationError> {
+    let mut res = Vec::<normalized::Page>::with_capacity(pages.len());
+
+    let mut last_name = None;
+    for page in pages {
+        if let Some(l) = last_name {
+            if l >= page.n {
+                return Err(NormalizationError::PageNumbersNotOrdered(l, page.n));
+            };
+        };
+        last_name = Some(page.n.clone());
+        res.push(page.try_into()?);
+    }
+    Ok(res)
+}
+
+impl TryFrom<schema::Page> for normalized::Page {
+    type Error = NormalizationError;
+
+    fn try_from(value: schema::Page) -> Result<Self, Self::Error> {
+        Ok(Self {
+            n: value.n,
+            lang: value.lang,
+            columns: try_norm_columns(value.columns)?,
         })
     }
 }
@@ -301,8 +350,13 @@ impl From<normalized::Meta> for schema::TeiHeader {
                         ms_identifier: schema::MsIdentifier {
                             institution: value.institution,
                             collection: value.collection,
-                            ms_name: value.name,
-                            page_nr: value.page_nr,
+                            alt_identifier: value
+                                .alt_identifier
+                                .into_iter()
+                                .map(|a| schema::AltIdentifier {
+                                    idno: schema::IdNo { name: a },
+                                })
+                                .collect(),
                         },
                         phys_desc: schema::PhysDesc {
                             hand_desc: value.hand_desc.map(|d| schema::HandDesc { summary: d }),
@@ -323,12 +377,28 @@ impl TryFrom<normalized::Text> for schema::Text {
         Ok(Self {
             body: schema::Body {
                 lang: Some(value.lang),
-                columns: value
-                    .columns
+                pages: value
+                    .pages
                     .into_iter()
                     .map(core::convert::TryInto::try_into)
                     .collect::<Result<Vec<_>, _>>()?,
             },
+        })
+    }
+}
+
+impl TryFrom<normalized::Page> for schema::Page {
+    type Error = NormalizationError;
+    fn try_from(value: normalized::Page) -> Result<Self, Self::Error> {
+        Ok(Self {
+            lang: value.lang,
+            n: value.n,
+            div_type: "page".to_string(),
+            columns: value
+                .columns
+                .into_iter()
+                .map(|c| c.try_into())
+                .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
@@ -445,9 +515,8 @@ mod test {
         assert!(norm_res.is_ok());
         let expected = crate::normalized::Manuscript {
             meta: crate::normalized::Meta {
-                name: "Der Name voms dem Manuskripts".to_string(),
-                page_nr: "34 verso".to_string(),
-                title: "Manuskript Name folio 34 verso.".to_string(),
+                alt_identifier: vec![],
+                title: "Manuskript Name".to_string(),
                 institution: Some("University of does-not-exist".to_string()),
                 collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
                 hand_desc: Some("There are two recognizable Hands: hand1 and hand2.".to_string()),
@@ -455,121 +524,127 @@ mod test {
             },
             text: crate::normalized::Text {
                 lang: "hbo-Hebr".to_string(),
-                columns: vec![
-                    crate::normalized::Column {
-                        lang: None,
-                        n: 1,
-                        lines: vec![
-                            crate::normalized::Line {
+                pages: vec![crate::normalized::Page {
+                    lang: None,
+                    n: "34_v".to_string(),
+                    columns: vec![
+                        crate::normalized::Column {
+                            lang: None,
+                            n: 1,
+                            lines: vec![
+                                crate::normalized::Line {
+                                    lang: None,
+                                    n: 2,
+                                    blocks: vec![
+                                        crate::normalized::InlineBlock::Text(
+                                            crate::normalized::Paragraph {
+                                                lang: None,
+                                                content: "asdfa".to_string(),
+                                            },
+                                        ),
+                                        crate::normalized::InlineBlock::Anchor(
+                                            crate::normalized::Anchor {
+                                                anchor_id: "A_V_MT_1Kg-3-4".to_string(),
+                                                anchor_type: "Masoretic".to_string(),
+                                            },
+                                        ),
+                                        crate::normalized::InlineBlock::Anchor(
+                                            crate::normalized::Anchor {
+                                                anchor_id: "A_V_LXX_1Kg-3-4".to_string(),
+                                                anchor_type: "Septuagint".to_string(),
+                                            },
+                                        ),
+                                        crate::normalized::InlineBlock::Text(
+                                            crate::normalized::Paragraph {
+                                                lang: None,
+                                                content: "sdfsa".to_string(),
+                                            },
+                                        ),
+                                    ],
+                                },
+                                crate::normalized::Line {
+                                    lang: Some("hbo-Hebr-x-babli".to_string()),
+                                    n: 3,
+                                    blocks: vec![crate::normalized::InlineBlock::Text(
+                                        crate::normalized::Paragraph {
+                                            lang: None,
+                                            content: "Some stuff with babylonian Niqud".to_string(),
+                                        },
+                                    )],
+                                },
+                            ],
+                        },
+                        crate::normalized::Column {
+                            lang: None,
+                            n: 2,
+                            lines: vec![crate::normalized::Line {
                                 lang: None,
                                 n: 2,
                                 blocks: vec![
                                     crate::normalized::InlineBlock::Text(
                                         crate::normalized::Paragraph {
                                             lang: None,
-                                            content: "asdfa".to_string(),
+                                            content: "Hier ein an".to_string(),
                                         },
                                     ),
-                                    crate::normalized::InlineBlock::Anchor(
-                                        crate::normalized::Anchor {
-                                            anchor_id: "A_V_MT_1Kg-3-4".to_string(),
-                                            anchor_type: "Masoretic".to_string(),
-                                        },
-                                    ),
-                                    crate::normalized::InlineBlock::Anchor(
-                                        crate::normalized::Anchor {
-                                            anchor_id: "A_V_LXX_1Kg-3-4".to_string(),
-                                            anchor_type: "Septuagint".to_string(),
+                                    crate::normalized::InlineBlock::Uncertain(
+                                        crate::normalized::Uncertain {
+                                            lang: None,
+                                            cert: Some("high".to_string()),
+                                            agent: "water".to_string(),
+                                            content: "d".to_string(),
                                         },
                                     ),
                                     crate::normalized::InlineBlock::Text(
                                         crate::normalized::Paragraph {
                                             lang: None,
-                                            content: "sdfsa".to_string(),
+                                            content: "erer, wo der Buchstabe nur etwas kaputt ist."
+                                                .to_string(),
+                                        },
+                                    ),
+                                    crate::normalized::InlineBlock::Lacuna(
+                                        crate::normalized::Lacuna {
+                                            reason: "lost".to_string(),
+                                            unit: crate::normalized::ExtentUnit::Character,
+                                            n: 12,
+                                            cert: Some("0.10".to_string()),
+                                        },
+                                    ),
+                                    crate::normalized::InlineBlock::Abbreviation(
+                                        crate::normalized::Abbreviation {
+                                            lang: None,
+                                            surface: crate::schema::AbbrSurface {
+                                                lang: None,
+                                                content: "JHWH".to_string(),
+                                            },
+                                            expansion: crate::schema::AbbrExpansion {
+                                                lang: None,
+                                                content: "Jahwe".to_string(),
+                                            },
+                                        },
+                                    ),
+                                    crate::normalized::InlineBlock::Correction(
+                                        crate::normalized::Correction {
+                                            lang: None,
+                                            versions: vec![
+                                                crate::normalized::Version {
+                                                    lang: None,
+                                                    hand: Some("hand1".to_string()),
+                                                    content: "sam stuff 1".to_string(),
+                                                },
+                                                crate::normalized::Version {
+                                                    lang: None,
+                                                    hand: Some("hand2".to_string()),
+                                                    content: "sam stuff 2".to_string(),
+                                                },
+                                            ],
                                         },
                                     ),
                                 ],
-                            },
-                            crate::normalized::Line {
-                                lang: Some("hbo-Hebr-x-babli".to_string()),
-                                n: 3,
-                                blocks: vec![crate::normalized::InlineBlock::Text(
-                                    crate::normalized::Paragraph {
-                                        lang: None,
-                                        content: "Some stuff with babylonian Niqud".to_string(),
-                                    },
-                                )],
-                            },
-                        ],
-                    },
-                    crate::normalized::Column {
-                        lang: None,
-                        n: 2,
-                        lines: vec![crate::normalized::Line {
-                            lang: None,
-                            n: 2,
-                            blocks: vec![
-                                crate::normalized::InlineBlock::Text(
-                                    crate::normalized::Paragraph {
-                                        lang: None,
-                                        content: "Hier ein an".to_string(),
-                                    },
-                                ),
-                                crate::normalized::InlineBlock::Uncertain(
-                                    crate::normalized::Uncertain {
-                                        lang: None,
-                                        cert: Some("high".to_string()),
-                                        agent: "water".to_string(),
-                                        content: "d".to_string(),
-                                    },
-                                ),
-                                crate::normalized::InlineBlock::Text(
-                                    crate::normalized::Paragraph {
-                                        lang: None,
-                                        content: "erer, wo der Buchstabe nur etwas kaputt ist."
-                                            .to_string(),
-                                    },
-                                ),
-                                crate::normalized::InlineBlock::Lacuna(crate::normalized::Lacuna {
-                                    reason: "lost".to_string(),
-                                    unit: crate::normalized::ExtentUnit::Character,
-                                    n: 12,
-                                    cert: Some("0.10".to_string()),
-                                }),
-                                crate::normalized::InlineBlock::Abbreviation(
-                                    crate::normalized::Abbreviation {
-                                        lang: None,
-                                        surface: crate::schema::AbbrSurface {
-                                            lang: None,
-                                            content: "JHWH".to_string(),
-                                        },
-                                        expansion: crate::schema::AbbrExpansion {
-                                            lang: None,
-                                            content: "Jahwe".to_string(),
-                                        },
-                                    },
-                                ),
-                                crate::normalized::InlineBlock::Correction(
-                                    crate::normalized::Correction {
-                                        lang: None,
-                                        versions: vec![
-                                            crate::normalized::Version {
-                                                lang: None,
-                                                hand: Some("hand1".to_string()),
-                                                content: "sam stuff 1".to_string(),
-                                            },
-                                            crate::normalized::Version {
-                                                lang: None,
-                                                hand: Some("hand2".to_string()),
-                                                content: "sam stuff 2".to_string(),
-                                            },
-                                        ],
-                                    },
-                                ),
-                            ],
-                        }],
-                    },
-                ],
+                            }],
+                        },
+                    ],
+                }],
             },
         };
         assert_eq!(norm_res.unwrap(), expected);

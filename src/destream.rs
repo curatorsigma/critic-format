@@ -18,6 +18,8 @@ pub enum StreamError {
     /// No block in the streamed form has a language associated with it, so we cannot choose the
     /// default language for the text
     NoBlockWithLanguage,
+    /// The name of the first page must be given as a leading PageBreak in the stream of blocks.
+    FirstPageNameMissing,
 }
 impl core::fmt::Display for StreamError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -40,6 +42,12 @@ impl core::fmt::Display for StreamError {
                     "No block in the streamed form has a lanaguage associated with it, so we cannot choose the default language."
                 )
             }
+            Self::FirstPageNameMissing => {
+                write!(
+                    f,
+                    "The name of the first page must be given in a leading PageBreak"
+                )
+            }
         }
     }
 }
@@ -56,6 +64,230 @@ impl TryFrom<normalized::Manuscript> for streamed::Manuscript {
     }
 }
 
+/// An iterator over the individual [`Block`](streamed::Block)s representing a single
+/// [`Page`](normalized::Page).
+struct BlocksFromPage<'a> {
+    remaining_cols_on_page: std::vec::IntoIter<normalized::Column>,
+    remaining_lines_in_col: std::vec::IntoIter<normalized::Line>,
+    remaining_blocks_in_line: std::vec::IntoIter<normalized::InlineBlock>,
+
+    /// the language of the current line
+    /// This gets updated while advancing through the manuscript, taking the value of the current
+    /// column/line
+    current_language: String,
+    /// the default language in this MS
+    /// This is static and will not be updated.
+    default_language: std::borrow::Cow<'a, str>,
+    /// the default language in the current column
+    language_in_col: String,
+    /// the logical numbering of the column (i.e. getting larger when passing column-spanning
+    /// lacuna)
+    col_idx: i32,
+    /// the logical numbering of the line (i.e. getting larger when passing line-spanning
+    /// lacuna)
+    line_idx: i32,
+    /// Will be initialized as Some(own name).
+    ///
+    /// When Some(x), will output PageBreak(x), taking ownership and leaving None here
+    return_own_startbreak_next: Option<String>,
+}
+impl<'a> BlocksFromPage<'a> {
+    pub fn new(page: normalized::Page, default_language: &'a str) -> Self {
+        // if defined on the page, use that
+        // else, use `default_language`
+        let default_language = if let Some(l) = page.lang.clone() {
+            std::borrow::Cow::Owned(l)
+        } else {
+            std::borrow::Cow::Borrowed(default_language)
+        };
+        let mut col_iter = page.columns.into_iter();
+        // unroll the page into the column/line/block iterator
+        let first_col = col_iter.next();
+        let (first_col_lang, mut line_iter) =
+            if let Some(normalized::Column { lines, lang, .. }) = first_col {
+                (lang, lines.into_iter())
+            } else {
+                (None, vec![].into_iter())
+            };
+        let first_line = line_iter.next();
+        let (first_line_lang, block_iter) =
+            if let Some(normalized::Line { blocks, lang, .. }) = first_line {
+                (lang, blocks.into_iter())
+            } else {
+                (None, vec![].into_iter())
+            };
+        let language_in_col = first_col_lang.unwrap_or_else(|| {
+            // fall back to the language on this page
+            page.lang
+                // fall back to the default language of this MS
+                .unwrap_or_else(|| default_language.to_string())
+        });
+        // language of the first line if available
+        let current_language = first_line_lang
+            // fall back to the language of the first col
+            .unwrap_or_else(|| language_in_col.clone());
+        Self {
+            remaining_cols_on_page: col_iter,
+            remaining_lines_in_col: line_iter,
+            remaining_blocks_in_line: block_iter,
+            default_language,
+            current_language,
+            language_in_col,
+            col_idx: 0,
+            line_idx: 0,
+            return_own_startbreak_next: Some(page.n),
+        }
+    }
+}
+impl<'a> Iterator for BlocksFromPage<'a> {
+    type Item = Result<streamed::Block, StreamError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(own_name) = self.return_own_startbreak_next.take() {
+            return Some(Ok(streamed::Block::Break(streamed::BreakType::Page(
+                own_name,
+            ))));
+        };
+
+        // get the next block
+        let Some(curr_block) = self.remaining_blocks_in_line.next() else {
+            // this line is exhausted, go to the next one
+            self.remaining_blocks_in_line = match self.remaining_lines_in_col.next() {
+                Some(x) => {
+                    self.line_idx += 1;
+                    // this lines language is either given, or supplied from the column
+                    if let Some(new_lang) = x.lang {
+                        self.current_language = new_lang.clone();
+                    } else {
+                        self.current_language = self.language_in_col.clone();
+                    };
+                    if self.col_idx != x.n {
+                        return Some(Err(StreamError::ColumnIndexInconsistent(self.col_idx, x.n)));
+                    };
+                    x.blocks.into_iter()
+                }
+                // this column in its entirety is exhausted, go to the next
+                None => {
+                    self.col_idx += 1;
+                    self.line_idx = 0;
+                    self.remaining_lines_in_col = match self.remaining_cols_on_page.next() {
+                        Some(x) => {
+                            // this columns language is either given, or supplied from the page
+                            self.language_in_col = if let Some(new_lang) = x.lang {
+                                new_lang.clone()
+                            } else {
+                                self.default_language.to_string()
+                            };
+                            self.current_language = self.language_in_col.clone();
+
+                            if self.line_idx != x.n {
+                                return Some(Err(StreamError::LineIndexInconsistent(
+                                    self.line_idx,
+                                    x.n,
+                                )));
+                            };
+                            x.lines.into_iter()
+                        }
+                        // there are no more columns, this iterator is done
+                        None => {
+                            return None;
+                        }
+                    };
+                    // try getting a new line on the next go around
+                    return self.next();
+                }
+            };
+            // try getting a new block on the next go around
+            return self.next();
+        };
+
+        let block_lang = curr_block
+            .language()
+            .map(|l| l.to_string())
+            .unwrap_or_else(|| self.current_language.clone());
+        let streamed_block = match (block_lang, curr_block).try_into() {
+            Ok(x) => x,
+            Err(e) => {
+                return Some(Err(e));
+            }
+        };
+        // break off if we start a multi-line or multi-column gap with this block
+        match streamed_block {
+            // a lacuna spanning multiple lines.
+            // we increment the line-nr by the appropriate amount and continue
+            // streaming from the next line defined in the xml
+            //
+            // There are n lines skipped, so the next defined line has index +n (from
+            // skipped lines) +1 (from this line ending) relative to the current line
+            // the `<gap>` is on.
+            //
+            // (the other lines are NOT to be defined in the xml, since they are taken
+            // up by the `<gap>`)
+            streamed::Block::Lacuna(streamed::Lacuna {
+                unit: normalized::ExtentUnit::Line,
+                n,
+                ..
+            }) => {
+                self.line_idx += n + 1;
+                return Some(Ok(streamed_block));
+            }
+            // a lacuna spanning multiple columns.
+            // we increment the column-nr by the appropriate amount and continue
+            // streaming from the next column defined in the xml
+            streamed::Block::Lacuna(streamed::Lacuna {
+                unit: normalized::ExtentUnit::Column,
+                n,
+                ..
+            }) => {
+                self.col_idx += n + 1;
+                return Some(Ok(streamed_block));
+            }
+            // now we do the exact same thing for spaces
+            streamed::Block::Space(streamed::Space {
+                unit: normalized::ExtentUnit::Line,
+                quantity,
+                ..
+            }) => {
+                self.line_idx += quantity + 1;
+                return Some(Ok(streamed_block));
+            }
+            // a lacuna spanning multiple columns.
+            // we increment the column-nr by the appropriate amount and continue
+            // streaming from the next column defined in the xml
+            streamed::Block::Space(streamed::Space {
+                unit: normalized::ExtentUnit::Column,
+                quantity,
+                ..
+            }) => {
+                self.col_idx += quantity + 1;
+                return Some(Ok(streamed_block));
+            }
+            _ => {}
+        }
+        Some(Ok(streamed_block))
+    }
+}
+
+impl normalized::Page {
+    fn into_streamed(self, default_language: &str) -> BlocksFromPage {
+        BlocksFromPage::new(self, default_language)
+    }
+}
+
+impl TryFrom<normalized::Text> for Vec<streamed::Block> {
+    type Error = StreamError;
+
+    fn try_from(value: normalized::Text) -> Result<Self, Self::Error> {
+        let streamed_blocks = value
+            .pages
+            .into_iter()
+            .map(|p| p.into_streamed(&value.lang))
+            .flatten();
+        Ok(streamed_blocks.collect::<Result<Vec<_>, _>>()?)
+    }
+}
+
+/*
 /// This does two main things:
 /// - unroll the hierarchy into a stream, inserting line and column breaks
 /// - Associate the correct language to every Block
@@ -182,6 +414,7 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
         Ok(res)
     }
 }
+*/
 
 impl TryFrom<(String, normalized::InlineBlock)> for streamed::Block {
     type Error = StreamError;
@@ -293,90 +526,152 @@ impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
     }
 }
 
+/// consume a stream of blocks until the current page ends
+///
+/// then return the built page and the name of the NEXT page
+/// - this is None, if the stream simply ended without us knowing the name of the next page
+/// - this name is part of the BreakType streamed Block, which we have to consume to see it
+///
+/// early return on any error; the stream will be in an undefined state when this fn errs.
+/// You may forward to the next BreakType::Page, consume it and then continue with the next page if
+/// you want to unroll
+fn transform_until_page_end(
+    stream: &mut impl Iterator<Item = streamed::Block>,
+    page_nr: String,
+) -> Result<(normalized::Page, Option<String>), StreamError> {
+    // these are logical indices we are building, keeping track of lacuna sizes
+    let mut line_idx = 1;
+    let mut column_idx = 1;
+    // these dicts contain info about the language used throughout the MS
+    let mut language_use = HashMap::<String, i32>::new();
+    let mut language_use_in_col = HashMap::<String, i32>::new();
+    let mut language_use_in_line = HashMap::<String, i32>::new();
+    // these are the vecs we are trying to fill with this function
+    let mut columns = Vec::<normalized::Column>::new();
+    let mut lines = Vec::<normalized::Line>::new();
+    let mut blocks_in_line = Vec::<normalized::InlineBlock>::new();
+
+    let next_page_name = 'stream: loop {
+        let Some(block) = stream.next() else {
+            // the stream has ended - this is the last page in this stream
+            break 'stream None;
+        };
+        // update language use
+        if let Some(lang_in_this_block) = block.language() {
+            // global
+            if let Some(this_lang_val) = language_use.get_mut(lang_in_this_block) {
+                *this_lang_val += 1;
+            } else {
+                language_use.insert(lang_in_this_block.to_string(), 1);
+            }
+            // column
+            if let Some(this_lang_val) = language_use_in_col.get_mut(lang_in_this_block) {
+                *this_lang_val += 1;
+            } else {
+                language_use_in_col.insert(lang_in_this_block.to_string(), 1);
+            }
+            // line
+            if let Some(this_lang_val) = language_use_in_line.get_mut(lang_in_this_block) {
+                *this_lang_val += 1;
+            } else {
+                language_use_in_line.insert(lang_in_this_block.to_string(), 1);
+            }
+        }
+
+        // this page is done, and there is another one afterwards
+        if let streamed::Block::Break(streamed::BreakType::Page(next_name)) = block {
+            break 'stream Some(next_name);
+        };
+        // add this block to this line:
+        handle_block(
+            block,
+            &mut blocks_in_line,
+            &mut lines,
+            &mut columns,
+            &mut language_use_in_line,
+            &mut language_use_in_col,
+            &mut line_idx,
+            &mut column_idx,
+        );
+    };
+
+    // now we need to add the remaining blocks as a final line/column as in a column break
+    if !blocks_in_line.is_empty() {
+        // first end the line
+        let most_common_lang_in_line =
+            most_common_lang(&language_use_in_line).map(std::string::ToString::to_string);
+        lines.push(normalized::Line {
+            lang: most_common_lang_in_line,
+            n: line_idx,
+            blocks: core::mem::take(&mut blocks_in_line),
+        });
+    }
+    if !lines.is_empty() {
+        // now end the column and go to the next one
+        let most_common_lang_in_col =
+            most_common_lang(&language_use_in_col).map(std::string::ToString::to_string);
+        let take_lines = core::mem::take(&mut lines);
+        columns.push(normalized::Column {
+            lang: most_common_lang_in_col,
+            n: column_idx,
+            lines: take_lines,
+        });
+    }
+
+    let most_common_lang = normalize_language(&mut columns, &language_use)?;
+
+    Ok((
+        normalized::Page {
+            lang: Some(most_common_lang.to_string()),
+            columns,
+            n: page_nr,
+        },
+        next_page_name,
+    ))
+}
+
 impl TryFrom<Vec<streamed::Block>> for normalized::Text {
     type Error = StreamError;
 
     fn try_from(value: Vec<streamed::Block>) -> Result<Self, Self::Error> {
-        let mut language_use = HashMap::<String, i32>::new();
-        let mut columns = Vec::<normalized::Column>::new();
-        let mut column_idx = 1;
-        let mut language_use_in_col = HashMap::<String, i32>::new();
-        let mut lines = Vec::<normalized::Line>::new();
-        let mut line_idx = 1;
-        let mut language_use_in_line = HashMap::<String, i32>::new();
-        let mut blocks_in_line = Vec::<normalized::InlineBlock>::new();
-
-        for block in value {
-            // update language use
-            if let Some(lang_in_this_block) = block.language() {
-                // global
-                if let Some(this_lang_val) = language_use.get_mut(lang_in_this_block) {
-                    *this_lang_val += 1;
-                } else {
-                    language_use.insert(lang_in_this_block.to_string(), 1);
-                }
-                // column
-                if let Some(this_lang_val) = language_use_in_col.get_mut(lang_in_this_block) {
-                    *this_lang_val += 1;
-                } else {
-                    language_use_in_col.insert(lang_in_this_block.to_string(), 1);
-                }
-                // line
-                if let Some(this_lang_val) = language_use_in_line.get_mut(lang_in_this_block) {
-                    *this_lang_val += 1;
-                } else {
-                    language_use_in_line.insert(lang_in_this_block.to_string(), 1);
-                }
+        let mut blocks_iter = value.into_iter();
+        let mut pages = Vec::new();
+        let mut langs_in_text = HashMap::<String, i32>::new();
+        let mut next_page_name = match blocks_iter.next() {
+            None => {
+                most_common_lang(&langs_in_text);
+                return Ok(normalized::Text {
+                    lang: String::default(),
+                    pages,
+                });
             }
-
-            // add this block to this line - but there are a few exceptions:
-            handle_block(
-                block,
-                &mut blocks_in_line,
-                &mut lines,
-                &mut columns,
-                &mut language_use_in_line,
-                &mut language_use_in_col,
-                &mut line_idx,
-                &mut column_idx,
-            );
+            Some(streamed::Block::Break(streamed::BreakType::Page(x))) => x,
+            Some(_) => {
+                return Err(StreamError::FirstPageNameMissing);
+            }
+        };
+        loop {
+            let (this_page, new_name) = transform_until_page_end(&mut blocks_iter, next_page_name)?;
+            let Some(y) = new_name else {
+                return Ok(normalized::Text {
+                    lang: most_common_lang(&langs_in_text)
+                        .unwrap_or_default()
+                        .to_string(),
+                    pages,
+                });
+            };
+            next_page_name = y;
+            let most_common_lang_in_page = this_page
+                .lang
+                .as_ref()
+                .expect("transform_until_page_end always sets language");
+            if let Some(this_lang_val) = langs_in_text.get_mut(most_common_lang_in_page) {
+                *this_lang_val += 1;
+            } else {
+                langs_in_text.insert(most_common_lang_in_page.to_string(), 1);
+            }
+            pages.push(this_page);
         }
-
-        // now we need to add the remaining blocks as a final line/column as in a column break
-        if !blocks_in_line.is_empty() {
-            // first end the line
-            let most_common_lang_in_line = language_use_in_line
-                .iter()
-                .max_by(|a, b| a.1.cmp(b.1))
-                .map(|(k, _v)| k)
-                .map(std::string::ToString::to_string);
-            lines.push(normalized::Line {
-                lang: most_common_lang_in_line,
-                n: line_idx,
-                blocks: core::mem::take(&mut blocks_in_line),
-            });
-        }
-        if !lines.is_empty() {
-            // now end the column and go to the next one
-            let most_common_lang_in_col = language_use_in_col
-                .iter()
-                .max_by(|a, b| a.1.cmp(b.1))
-                .map(|(k, _v)| k)
-                .map(std::string::ToString::to_string);
-            let take_lines = core::mem::take(&mut lines);
-            columns.push(normalized::Column {
-                lang: most_common_lang_in_col,
-                n: column_idx,
-                lines: take_lines,
-            });
-        }
-
-        let most_common_lang = normalize_language(&mut columns, &language_use)?;
-
-        Ok(Self {
-            lang: most_common_lang.to_string(),
-            columns,
-        })
     }
 }
 
@@ -423,8 +718,13 @@ fn end_column(
     *line_idx = 1;
 }
 
-/// Add a block to the datastructure, update language use and forward line and column indexes when
+/// Add a block to this pages datastructure,
+/// update language use and forward line and column indexes when
 /// a line or column is ended by this block
+///
+/// # Panics
+/// MUST NOT BE CALLED on block = Block::Break(BreakType::Page())!
+
 // this function is admittedly ugly - however, most of it is is one large match statement which
 // does not refactor into meaningful functions
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -439,6 +739,12 @@ fn handle_block(
     column_idx: &mut i32,
 ) {
     match block {
+        streamed::Block::Break(streamed::BreakType::Page(_n)) => {
+            panic!(
+                "handle_block MUST NOT be called on a pagebreak; \
+                you need to handle this because handle_block cannot split pages"
+            )
+        }
         // end this line, start a new one
         streamed::Block::Break(streamed::BreakType::Line) => {
             end_line(

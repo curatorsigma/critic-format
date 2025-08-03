@@ -136,6 +136,9 @@ pub enum BreakType {
     Line,
     /// Columnbreak
     Column,
+    /// Pagebreak
+    /// contains the name of the next page
+    Page(String),
 }
 /// Default for user facing code
 impl Default for BreakType {
@@ -151,6 +154,9 @@ impl core::str::FromStr for BreakType {
         match s {
             "Line" => Ok(Self::Line),
             "Column" => Ok(Self::Column),
+            // TODO
+            // I do not think that this case will ever be necessary, but am unsure
+            "Page" => Ok(Self::Page(String::default())),
             _ => Err(()),
         }
     }
@@ -161,6 +167,9 @@ impl BreakType {
         match self {
             Self::Line => "Line",
             Self::Column => "Column",
+            // TODO
+            // I do not think that this case will ever be necessary, but am unsure
+            Self::Page(_e) => "Page",
         }
     }
 }

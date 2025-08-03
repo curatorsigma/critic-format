@@ -7,24 +7,22 @@ Some aspects of this document refer not specifically to TEI encoding, but broade
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
 
 # File Layout
-Each page (not folio) of an ancient manuscript MUST reside in a separate TEI file.
+Each Manuscript in its entirety MUST be inside a single TEI file.
 ## File Naming Scheme
-The names for TEI files SHOULD be `{manuscript name}_{folio}_{recto/verso}` for folios.
+The names for TEI files SHOULD be a unique name of the manuscript.
 
-Manuscripts in scroll form (or other forms without natural pagebreaks) SHOULD be given as an individual TEI file for each image.
-Their filename SHOULD be `{manuscript name}_{image-id}`
+## Internal files for single pages
+When it is desirable to only give transcription information about a single page, the `<div type="page"/>` alone MAY be put in a single file.
+It should be noted that this file *is not* valid TEI since it misses the header.
 
-## Directory Structure
-`critic` uses this directory structure. For interchange purposes, you are free to use any directory structure that seems convenient.
-- `{manuscript name}`
-    - page files
+When only giving information about a single page, a full TEI file with header MAY NOT be used. This restriction is to prevent the header information being duplicated across several files.
 
 # Metadata
 ## The TEI Header
-This TEI Header MUST be present in every individual TEI file.
+This TEI Header (`<teiHeader>`) MUST be present in every TEI file.
 
 ### titleStmt
-The `title` inside `titleStmt` MUST be given as `{manuscript name} folio {folio number} {recto/verse}.` when the manuscript has folios or `{manuscript name} page {page number}` if it does not (e.g. for scrolls).
+The `title` inside `titleStmt` MUST be given as `{manuscript name}`.
 
 ### publicationStmt
 The `publicationStmt` MUST be given as `<p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>`.
@@ -37,10 +35,10 @@ The `sourceDesc` MUST be given and contain exactly one element `msDesc`, defined
 - The Body of each file MUST begin with a `msDesc`.
 - The `msDesc` MUST have
     - `msIdentifier`, defining the physical manuscript reproduced:
-        - `msName` MUST be given
-        - `idno` MUST be given and MUST be either `{folio number} {recto/verso}` or `{page number}`
         - `institution` SHOULD be given if relevant
         - `collection` MAY be given if relevant
+        - `altIdentifier` MAY be given any number of times, each containing a single `idno`, which contains an alternative identifier for this MS
+            - For Example, for Codex `S1`, you may add an `altIdentifier` each for `Safra, JUD002`, and `Sassoon 1053`
 - `physDesc` MUST be given and MAY contain `handDesc` and `scriptDesc` to describe the characteristics of scribal hands or the script used.
 
 # Representing the Text itself
@@ -55,6 +53,20 @@ Reconstructions MUST NOT be done to correct scribal errors, including but not li
 - skipped words, even when alliterations or other markers make a genuine mistake probable
 All of the above phenomena MUST be represented without emandation. See the later sections for the correct markup to use.
 
+## Text Structure
+Text is structured as three levels of nested divs:
+- page (represented by a `div` with `type="page"`)
+    - column (represented by a `div` with `type="column"`)
+        - line (represented by a `div` with `type="line"`)
+        - Every block of normal text MUST be enclosed in `<p>` unless it is special in some way (see below for special cases).
+For the page-level, the `n` attribute MUST be given and contain the name of the page.
+Page names SHOULD be a sequential number, or `{folio-nr}_{r/v}` for folios.
+In any case, page names MUST be in lexical order (i.e. a page appearing first in the reading order of the MS MUST have a lexically smaller name).
+Pages now missing from the MS SHOULD be given as an empty `<div type="page" n="{pagename}/>`.
+
+For column and line, the `n` attribute with the correct number SHOULD be given.
+If it is not given, the number is supplied sequentially, starting from 1.
+
 ## Defining the source Language {#Defining-the-source-language}
 - The source language MUST be defined for each part of the transcription.
 - The source language MUST be defined in the `xml:lang` attribute.
@@ -63,15 +75,6 @@ All of the above phenomena MUST be represented without emandation. See the later
 - BCP47 Codes MUST be used to define the source language.
     - Common Codes used for the transcription of biblical manuscripts are:
         - `hbo-Hebr`, `hbo-Phnx`, `smp-Hebr`, `grc`
-
-## Text Structure
-Text is structured as two levels of nested divs:
-- column (represented by a `div` with `type="column"`)
-    - line (represented by a `div` with `type="line"`)
-    - Every block of normal text MUST be enclosed in `<p>` unless it is special in some way (see below for special cases).
-Notice that one page is one OS file, so no folio/page-breaks will ever occur inside one file.
-For both column and line, the `n` attribute with the correct number SHOULD be given. If it is not given, the number is supplied sequentially, starting from 1
-When lines or columns are missing, `n` MUST be applied.
 
 ### Versification
 It is the goal of text criticism to be as faithful to each manuscript as possible, and to approach ancient texts on their own merit.
@@ -179,6 +182,8 @@ Instead of missing characters, a `<gap>` element MUST be used, directly inside t
 - `@unit` MUST be given and MUST be one of `character`, `line`, `column`
 - `@n` MUST be given
 - `@cert` MAY be given and qualifies both the certainty in assertaining the amount of missing units as well as the proposed reconstruction if any
+
+Missing pages MUST NOT be marked as lacuna. Instead, they SHOULD be marked by adding an empty `<div type="page" n="{pagename}"/>`.
 
 ## Ancient Corrections
 When multiple ancient surface forms are present in a place, these rules apply.

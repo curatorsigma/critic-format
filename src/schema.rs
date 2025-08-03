@@ -138,11 +138,9 @@ pub struct MsIdentifier {
     pub institution: Option<String>,
     /// The collection this manuscript is a part of
     pub collection: Option<String>,
-    /// The name of this manuscript (NOT including folio/page numbers)
-    #[serde(rename = "idno")]
-    pub page_nr: String,
-    #[serde(rename = "msName")]
-    pub ms_name: String,
+    /// Alternative identifiers (other then the main MS name, which is in the `<title>`
+    #[serde(rename = "altIdentifier", skip_serializing_if = "Vec::is_empty")]
+    pub alt_identifier: Vec<AltIdentifier>,
 }
 impl MsIdentifier {
     #[must_use]
@@ -150,8 +148,36 @@ impl MsIdentifier {
         Self {
             institution: self.institution.map(trim_if_required),
             collection: self.collection.map(trim_if_required),
-            page_nr: trim_if_required(self.page_nr),
-            ms_name: trim_if_required(self.ms_name),
+            alt_identifier: self.alt_identifier.into_iter().map(|a| a.trim()).collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AltIdentifier {
+    #[serde(rename = "idno")]
+    pub idno: IdNo,
+}
+impl AltIdentifier {
+    #[must_use]
+    pub fn trim(self) -> Self {
+        Self {
+            idno: self.idno.trim(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct IdNo {
+    /// The actual identifier
+    #[serde(rename = "$text")]
+    pub name: String,
+}
+impl IdNo {
+    #[must_use]
+    pub fn trim(self) -> Self {
+        Self {
+            name: trim_if_required(self.name),
         }
     }
 }
@@ -224,9 +250,9 @@ pub struct Body {
     /// the default language for text in this manuscript
     #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
-    /// The columns present in this text
+    /// The pages present in this text
     #[serde(rename = "div")]
-    pub columns: Vec<Column>,
+    pub pages: Vec<Page>,
 }
 impl Body {
     /// Trim whitespace from all text fields
@@ -234,6 +260,36 @@ impl Body {
     pub fn trim(self) -> Self {
         Self {
             lang: self.lang,
+            pages: self.pages.into_iter().map(Page::trim).collect(),
+        }
+    }
+}
+
+/// The text in an individual page
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct Page {
+    /// the default language for text in this page
+    #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
+    /// the type is `page`
+    /// This is only enforced on the normalized type, not while (de-)serializing xml
+    #[serde(rename = "@type")]
+    pub div_type: String,
+    /// the page name
+    #[serde(rename = "@n")]
+    pub n: String,
+    /// The columns present in this page
+    #[serde(rename = "div")]
+    pub columns: Vec<Column>,
+}
+impl Page {
+    /// Trim whitespace from all text fields
+    #[must_use]
+    pub fn trim(self) -> Self {
+        Self {
+            lang: self.lang,
+            div_type: self.div_type,
+            n: self.n,
             columns: self.columns.into_iter().map(Column::trim).collect(),
         }
     }
@@ -1341,9 +1397,11 @@ mod test {
     #[test]
     fn body_1_by_1() {
         let xml = r#"<body xml:lang="grc">
+            <div type="page" n="page1">
             <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
             <div type="line" n="3">
                 <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
             </div>
             </div>
             </body>"#;
@@ -1354,50 +1412,11 @@ mod test {
             result.unwrap(),
             Body {
                 lang: Some("grc".to_string()),
-                columns: vec![Column {
-                    lang: Some("hbo-Hebr-x-babli".to_string()),
-                    n: Some(1),
-                    div_type: "column".to_string(),
-                    lines: vec![Line {
-                        lang: None,
-                        div_type: "line".to_string(),
-                        n: Some(3),
-                        blocks: vec![InlineBlock::Anchor(Anchor {
-                            xml_id: "A_V_MT_1Kg-3-5".to_string(),
-                            anchor_type: "Masoretic".to_string(),
-                        })]
-                    }]
-                }]
-            }
-        );
-    }
-
-    /// Body - no language is allowed. Setting a master language will only be enforced when
-    /// normalizing
-    #[test]
-    fn body_2_by_1() {
-        let xml = r#"<body>
-            <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
-            <div type="line" n="3">
-                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
-            </div>
-            </div>
-            <div type="column" n="2" xml:lang="hbo-Hebr">
-            <div type="line" n="1">
-                <p>
-                    Some text here
-                </p>
-            </div>
-            </div>
-            </body>"#;
-        let result: Result<Body, _> = quick_xml::de::from_str(xml);
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap().trim(),
-            Body {
-                lang: None,
-                columns: vec![
-                    Column {
+                pages: vec![Page {
+                    lang: None,
+                    div_type: "page".to_string(),
+                    n: "page1".to_string(),
+                    columns: vec![Column {
                         lang: Some("hbo-Hebr-x-babli".to_string()),
                         n: Some(1),
                         div_type: "column".to_string(),
@@ -1410,32 +1429,18 @@ mod test {
                                 anchor_type: "Masoretic".to_string(),
                             })]
                         }]
-                    },
-                    Column {
-                        lang: Some("hbo-Hebr".to_string()),
-                        n: Some(2),
-                        div_type: "column".to_string(),
-                        lines: vec![Line {
-                            lang: None,
-                            div_type: "line".to_string(),
-                            n: Some(1),
-                            blocks: vec![InlineBlock::P(TDOCWrapper {
-                                lang: None,
-                                value: TextDamageOrChoice::Text("Some text here".to_string())
-                            })]
-                        }]
-                    }
-                ]
+                    }]
+                }]
             }
         );
     }
 
-    /// Text - simply wraps a body
+    /// Body - no language is allowed. Setting a master language will only be enforced when
+    /// normalizing
     #[test]
-    fn text() {
-        let xml = r#"
-            <text>
-            <body xml:lang="grc">
+    fn body_2_by_1() {
+        let xml = r#"<body>
+            <div type="page" n="page2" xml:lang="grc">
             <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
             <div type="line" n="3">
                 <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
@@ -1448,15 +1453,18 @@ mod test {
                 </p>
             </div>
             </div>
-            </body>
-            </text>"#;
-        let result: Result<Text, _> = quick_xml::de::from_str(xml);
+            </div>
+            </body>"#;
+        let result: Result<Body, _> = quick_xml::de::from_str(xml);
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap().trim(),
-            Text {
-                body: Body {
+            Body {
+                lang: None,
+                pages: vec![Page {
                     lang: Some("grc".to_string()),
+                    n: "page2".to_string(),
+                    div_type: "page".to_string(),
                     columns: vec![
                         Column {
                             lang: Some("hbo-Hebr-x-babli".to_string()),
@@ -1487,6 +1495,77 @@ mod test {
                             }]
                         }
                     ]
+                }]
+            }
+        );
+    }
+
+    /// Text - simply wraps a body
+    #[test]
+    fn text() {
+        let xml = r#"
+            <text>
+            <body xml:lang="grc">
+            <div type="page" n="page1">
+            <div type="column" n="1" xml:lang="hbo-Hebr-x-babli">
+            <div type="line" n="3">
+                <anchor xml:id="A_V_MT_1Kg-3-5" type="Masoretic"/>
+            </div>
+            </div>
+            <div type="column" n="2" xml:lang="hbo-Hebr">
+            <div type="line" n="1">
+                <p>
+                    Some text here
+                </p>
+            </div>
+            </div>
+            </div>
+            </body>
+            </text>"#;
+        let result: Result<Text, _> = quick_xml::de::from_str(xml);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().trim(),
+            Text {
+                body: Body {
+                    lang: Some("grc".to_string()),
+                    pages: vec![Page {
+                        lang: None,
+                        n: "page1".to_string(),
+                        div_type: "page".to_string(),
+                        columns: vec![
+                            Column {
+                                lang: Some("hbo-Hebr-x-babli".to_string()),
+                                n: Some(1),
+                                div_type: "column".to_string(),
+                                lines: vec![Line {
+                                    lang: None,
+                                    div_type: "line".to_string(),
+                                    n: Some(3),
+                                    blocks: vec![InlineBlock::Anchor(Anchor {
+                                        xml_id: "A_V_MT_1Kg-3-5".to_string(),
+                                        anchor_type: "Masoretic".to_string(),
+                                    })]
+                                }]
+                            },
+                            Column {
+                                lang: Some("hbo-Hebr".to_string()),
+                                n: Some(2),
+                                div_type: "column".to_string(),
+                                lines: vec![Line {
+                                    lang: None,
+                                    div_type: "line".to_string(),
+                                    n: Some(1),
+                                    blocks: vec![InlineBlock::P(TDOCWrapper {
+                                        lang: None,
+                                        value: TextDamageOrChoice::Text(
+                                            "Some text here".to_string()
+                                        )
+                                    })]
+                                }]
+                            }
+                        ]
+                    }]
                 }
             }
         );
@@ -1504,7 +1583,7 @@ mod test {
         tei_header: TeiHeader {
             file_desc: FileDesc {
                 title_stmt: TitleStmt {
-                    title: "Manuskript Name folio 34 verso.".to_string(),
+                    title: "Manuskript Name".to_string(),
                 },
                 publication_stmt: PublicationStmt {
                     p: "This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.".to_string(),
@@ -1512,14 +1591,13 @@ mod test {
                 source_desc: SourceDesc {
                     ms_desc: MsDesc {
                         ms_identifier: MsIdentifier {
+                            alt_identifier: vec![],
                             institution: Some(
                                 "University of does-not-exist".to_string(),
                             ),
                             collection: Some(
                                 "Collectors Edition 2 electric boogaloo".to_string(),
                             ),
-                            ms_name: "Der Name voms dem Manuskripts".to_string(),
-                            page_nr: "34 verso".to_string(),
                         },
                         phys_desc: PhysDesc {
                             hand_desc: Some(HandDesc {
@@ -1538,6 +1616,11 @@ mod test {
                 lang: Some(
                     "hbo-Hebr".to_string(),
                 ),
+                pages: vec![
+                    Page {
+                        lang: None,
+                        div_type: "page".to_string(),
+                        n: "34_v".to_string(),
                 columns: vec![
                     Column {
                         lang: None,
@@ -1698,6 +1781,8 @@ mod test {
                             },
                         ],
                     },
+                ],
+                    }
                 ],
             },
         },
