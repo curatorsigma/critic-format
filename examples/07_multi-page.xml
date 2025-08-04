@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="TODO:schema-file" schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>
+                    Manuskript Name
+                </title>
+            </titleStmt>
+            <publicationStmt>
+                <p>This digital reproduction is published as part of TanakhCC and licensed as https://creativecommons.org/publicdomain/zero/1.0.</p>
+            </publicationStmt>
+            <sourceDesc>
+            <msDesc>
+                <msIdentifier>
+                </msIdentifier>
+                <physDesc>
+                </physDesc>
+            </msDesc>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <text>
+        <body xml:lang="hbo-Hebr">
+	    <div type="page" xml:lang="grc" n="34_v">
+            <div type="column" n="1">
+                <div type="line">
+                    <p>
+                    asdfa
+                    </p>
+                    <anchor xml:id="A_V_MT_1Kg-3-4" type="Masoretic"/>
+                    <anchor xml:id="A_V_LXX_1Kg-3-4" type="Septuagint"/>
+                    <p>
+                    sdfsa
+                    </p>
+                </div>
+                <div type="line" xml:lang="hbo-Hebr-x-babli">
+                    <p>
+                        Some stuff with babylonian Niqud
+                    </p>
+                </div>
+            </div>
+
+
+            <div type="column">
+                    <div type="line" n="1">
+
+                    <p>
+                    Hier ein an
+                    </p>
+                    <p xml:lang="hbo-Phnx">
+                        <damage cert="high" agent="water">
+                    d
+                        </damage>
+                    </p>
+                    <p>
+                    erer, wo der Buchstabe nur etwas kaputt ist.
+                    </p>
+
+                    <gap reason="lost" n="12" unit="character" cert="0.10"/>
+
+                    <p>
+                    <choice>
+                        <abbr>
+                            JHWH
+                        </abbr>
+                        <expan xml:lang="ger">
+                            Jahwe
+                        </expan>
+                    </choice>
+                    </p>
+
+                    <app>
+                        <rdg hand="hand1" varSeq="1">
+                            sam stuff 1
+                        </rdg>
+                        <rdg hand="hand2" varSeq="2">
+                            sam stuff 2
+                        </rdg>
+                    </app>
+                </div>
+            </div>
+	    </div>
+	    <div type="page" n="35_r">
+		    <div type="column">
+			    <div type="line">
+				    <gap reason="water" unit="column" n="2"/>
+			    </div>
+		    </div>
+		    <div type="column" n="4">
+			    <div type="line">
+				    <p>Some text</p>
+				    <gap reason="smeared ink" unit="line" n="4"/>
+			    </div>
+			    <div type="line" n="6" xml:lang="grc">
+				    <p>in grc</p>
+				    <p xml:lang="hbo-Hebr">in hbo-Hebr</p>
+			    </div>
+		    </div>
+	    </div>
+        </body>
+    </text>
+</TEI>
+

@@ -146,7 +146,7 @@ impl<'a> BlocksFromPage<'a> {
         };
         if self.line_idx != next_line.n {
             return Err(StreamError::LineIndexInconsistent(
-                self.col_idx,
+                self.line_idx,
                 next_line.n,
             ));
         };
@@ -1722,5 +1722,26 @@ mod test {
             }),
         ];
         assert_eq!(streamed, expected);
+    }
+
+    /// Multiple pages with different language that needs to be normalized and some gaps
+    #[test]
+    fn multi_page() {
+        let xml = include_str!("../examples/07_multi-page.xml");
+        let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
+        dbg!(&xml_res);
+        assert!(xml_res.is_ok());
+        let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
+        assert!(norm_res.is_ok());
+        let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        dbg!(&streamed_res);
+        assert!(streamed_res.is_ok());
+        let streamed = streamed_res.unwrap();
+
+        let destreamed: Result<normalized::Manuscript, _> = streamed.clone().try_into();
+        assert!(destreamed.is_ok());
+        let restreamed: Result<streamed::Manuscript, _> = destreamed.unwrap().try_into();
+        assert!(restreamed.is_ok());
+        assert_eq!(streamed, restreamed.unwrap());
     }
 }
