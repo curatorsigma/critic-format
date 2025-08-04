@@ -152,7 +152,11 @@ impl MsIdentifier {
         Self {
             institution: self.institution.map(trim_if_required),
             collection: self.collection.map(trim_if_required),
-            alt_identifier: self.alt_identifier.into_iter().map(|a| a.trim()).collect(),
+            alt_identifier: self
+                .alt_identifier
+                .into_iter()
+                .map(AltIdentifier::trim)
+                .collect(),
         }
     }
 }

@@ -167,8 +167,8 @@ fn try_norm_pages(pages: Vec<schema::Page>) -> Result<Vec<normalized::Page>, Nor
         if let Some(l) = last_name {
             if l >= page.n {
                 return Err(NormalizationError::PageNumbersNotOrdered(l, page.n));
-            };
-        };
+            }
+        }
         last_name = Some(page.n.clone());
         res.push(page.try_into()?);
     }
@@ -397,7 +397,7 @@ impl TryFrom<normalized::Page> for schema::Page {
             columns: value
                 .columns
                 .into_iter()
-                .map(|c| c.try_into())
+                .map(core::convert::TryInto::try_into)
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }

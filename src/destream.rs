@@ -18,7 +18,7 @@ pub enum StreamError {
     /// No block in the streamed form has a language associated with it, so we cannot choose the
     /// default language for the text
     NoBlockWithLanguage,
-    /// The name of the first page must be given as a leading PageBreak in the stream of blocks.
+    /// The name of the first page must be given as a leading [`pagebreak`](streamed::BreakType::Page) in the stream of blocks.
     FirstPageNameMissing,
     /// There was a column without lines in it.
     ///
@@ -96,13 +96,13 @@ struct BlocksFromPage<'a> {
     /// the logical numbering of the line (i.e. getting larger when passing line-spanning
     /// lacuna)
     line_idx: i32,
-    /// Will be initialized as Some(own name).
+    /// Will be initialized as `Some(own name)`.
     ///
-    /// When Some(x), will output PageBreak(x), taking ownership and leaving None here
+    /// When `Some(x)`, will output `PageBreak(x)`, taking ownership and leaving None here
     return_own_startbreak_next: Option<String>,
-    /// signals that the next Break(BreakType::Line) should be skipped
+    /// signals that the next `Break(BreakType::Line)` should be skipped
     skip_next_linebreak: bool,
-    /// signals that the next Break(BreakType::Column) should be skipped
+    /// signals that the next `Break(BreakType::Column)` should be skipped
     skip_next_columnbreak: bool,
 }
 impl<'a> BlocksFromPage<'a> {
@@ -140,16 +140,16 @@ impl<'a> BlocksFromPage<'a> {
         self.line_idx += 1;
         // this lines language is either given, or supplied from the column
         if let Some(new_lang) = next_line.lang {
-            self.current_language = new_lang.clone();
+            self.current_language.clone_from(&new_lang);
         } else {
             self.current_language = self.language_in_col.clone();
-        };
+        }
         if self.line_idx != next_line.n {
             return Err(StreamError::LineIndexInconsistent(
                 self.line_idx,
                 next_line.n,
             ));
-        };
+        }
         // these are the blocks on the new line
         self.remaining_blocks_in_line = next_line.blocks.into_iter();
         Ok(())
@@ -180,24 +180,22 @@ impl<'a> BlocksFromPage<'a> {
                 self.col_idx,
                 next_column.n,
             ));
-        };
+        }
         // get the lines for the next column into our internal iterator
         self.remaining_lines_in_col = next_column.lines.into_iter();
         // now get the blocks for the first line into their iterator
         match self.remaining_lines_in_col.next() {
             Some(next_line) => {
-                if let Err(e) = self.load_next_line(next_line) {
-                    return Err(e);
-                };
+                self.load_next_line(next_line)?;
             }
             None => {
                 return Err(StreamError::NoLinesInColumn(self.col_idx));
             }
-        };
+        }
         Ok(())
     }
 }
-impl<'a> Iterator for BlocksFromPage<'a> {
+impl Iterator for BlocksFromPage<'_> {
     type Item = Result<streamed::Block, StreamError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -205,7 +203,7 @@ impl<'a> Iterator for BlocksFromPage<'a> {
             return Some(Ok(streamed::Block::Break(streamed::BreakType::Page(
                 own_name,
             ))));
-        };
+        }
 
         // get the next block, or handle the case where the line/column has ended
         let Some(curr_block) = self.remaining_blocks_in_line.next() else {
@@ -214,15 +212,14 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                 Some(next_line) => {
                     if let Err(e) = self.load_next_line(next_line) {
                         return Some(Err(e));
-                    };
+                    }
                     // but for now, we need to return the line break - the next iteration will get
                     // the first block of the new line
                     if self.skip_next_linebreak {
                         self.skip_next_linebreak = false;
                         return self.next();
-                    } else {
-                        return Some(Ok(streamed::Block::Break(streamed::BreakType::Line)));
                     }
+                    return Some(Ok(streamed::Block::Break(streamed::BreakType::Line)));
                 }
                 // this column in its entirety is exhausted, go to the next
                 None => {
@@ -230,15 +227,12 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                         Some(next_column) => {
                             if let Err(e) = self.load_next_column(next_column) {
                                 return Some(Err(e));
-                            };
+                            }
                             if self.skip_next_columnbreak {
                                 self.skip_next_columnbreak = false;
                                 return self.next();
-                            } else {
-                                return Some(Ok(streamed::Block::Break(
-                                    streamed::BreakType::Column,
-                                )));
-                            };
+                            }
+                            return Some(Ok(streamed::Block::Break(streamed::BreakType::Column)));
                         }
                         // there are no more columns, this page is done
                         // Do not add final Line and Column breaks here
@@ -250,10 +244,10 @@ impl<'a> Iterator for BlocksFromPage<'a> {
             };
         };
 
-        let block_lang = curr_block
-            .language()
-            .map(|l| l.to_string())
-            .unwrap_or_else(|| self.current_language.clone());
+        let block_lang = curr_block.language().map_or_else(
+            || self.current_language.clone(),
+            std::string::ToString::to_string,
+        );
         let streamed_block = match (block_lang, curr_block).try_into() {
             Ok(x) => x,
             Err(e) => {
@@ -334,9 +328,8 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
         let streamed_blocks = value
             .pages
             .into_iter()
-            .map(|p| p.into_streamed(&value.lang))
-            .flatten();
-        Ok(streamed_blocks.collect::<Result<Vec<_>, _>>()?)
+            .flat_map(|p| p.into_streamed(&value.lang));
+        streamed_blocks.collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -581,13 +574,15 @@ impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
 
 /// consume a stream of blocks until the current page ends
 ///
-/// then return the built page and the name of the NEXT page
+/// then return the built page and the name of the NEXT [`Page`]
 /// - this is None, if the stream simply ended without us knowing the name of the next page
-/// - this name is part of the BreakType streamed Block, which we have to consume to see it
+/// - this name is part of the [`BreakType`](streamed::BreakType) ending this [`Page`], which we have to consume to see it
 ///
 /// early return on any error; the stream will be in an undefined state when this fn errs.
-/// You may forward to the next BreakType::Page, consume it and then continue with the next page if
+/// You may forward to the next [`BreakType::Page`](streamed::BreakType::Page), consume it and then continue with the next page if
 /// you want to unroll
+///
+/// [`Page`]: normalized::Page
 fn transform_until_page_end(
     stream: &mut impl Iterator<Item = streamed::Block>,
     page_nr: String,
@@ -634,7 +629,7 @@ fn transform_until_page_end(
         // this page is done, and there is another one afterwards
         if let streamed::Block::Break(streamed::BreakType::Page(next_name)) = block {
             break 'stream Some(next_name);
-        };
+        }
         // add this block to this line:
         handle_block(
             block,
@@ -777,15 +772,14 @@ fn end_column(
     *line_idx = 1;
 }
 
+// this function is admittedly ugly - however, most of it is is one large match statement which
+// does not refactor into meaningful functions
 /// Add a block to this pages datastructure,
 /// update language use and forward line and column indexes when
 /// a line or column is ended by this block
 ///
 /// # Panics
-/// MUST NOT BE CALLED on block = Block::Break(BreakType::Page())!
-
-// this function is admittedly ugly - however, most of it is is one large match statement which
-// does not refactor into meaningful functions
+/// MUST NOT BE CALLED on `block = Block::Break(BreakType::Page())!`
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn handle_block(
     block: streamed::Block,
