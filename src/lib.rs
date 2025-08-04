@@ -160,10 +160,14 @@ mod test {
 
     #[test]
     fn page_to_xml() {
-        let blocks = vec![
-            crate::streamed::Block::Text(crate::streamed::Paragraph { lang: "ger".to_string(), content: "Das ist content.".to_string()})
-        ];
+        let blocks = vec![crate::streamed::Block::Text(crate::streamed::Paragraph {
+            lang: "ger".to_string(),
+            content: "Das ist content.".to_string(),
+        })];
         let to_xml = super::page_to_xml(blocks, "page1".to_string()).unwrap();
-        assert_eq!(to_xml, r#"<div xml:lang="ger" type="page" n="page1"><div type="column" n="1"><div type="line" n="1"><p>Das ist content.</p></div></div></div>"#);
+        assert_eq!(
+            to_xml,
+            r#"<div xml:lang="ger" type="page" n="page1"><div type="column" n="1"><div type="line" n="1"><p>Das ist content.</p></div></div></div>"#
+        );
     }
 }

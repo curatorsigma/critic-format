@@ -106,6 +106,7 @@ pub struct BlocksFromPage<'a> {
     skip_next_columnbreak: bool,
 }
 impl<'a> BlocksFromPage<'a> {
+    #[must_use]
     pub fn new(page: normalized::Page, default_language: &'a str) -> Self {
         // if defined on the page, use that
         // else, use `default_language`
@@ -320,10 +321,11 @@ impl Iterator for BlocksFromPage<'_> {
 /// Since `self.remaining_cols_on_page` is [`std::vec::IntoIter`] which is
 /// [`Fused`], [`BlocksFromPage`] is also [`Fused`].
 ///
-/// [`Fused`]: std::iter::FusedIterator
-impl std::iter::FusedIterator for BlocksFromPage<'_> {}
+/// [`Fused`]: core::iter::FusedIterator
+impl core::iter::FusedIterator for BlocksFromPage<'_> {}
 
 impl normalized::Page {
+    #[must_use]
     pub fn into_streamed(self, default_language: &str) -> BlocksFromPage {
         BlocksFromPage::new(self, default_language)
     }
@@ -460,6 +462,9 @@ impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
 /// early return on any error; the stream will be in an undefined state when this fn errs.
 /// You may forward to the next [`BreakType::Page`](streamed::BreakType::Page), consume it and then continue with the next page if
 /// you want to unroll
+///
+/// # Errors
+/// Any of the Destream errors can occur while converting streamed blocks to normalized blocks.
 ///
 /// [`Page`]: normalized::Page
 pub fn transform_until_page_end(
