@@ -76,7 +76,7 @@ impl TryFrom<normalized::Manuscript> for streamed::Manuscript {
 
 /// An iterator over the individual [`Block`](streamed::Block)s representing a single
 /// [`Page`](normalized::Page).
-struct BlocksFromPage<'a> {
+pub struct BlocksFromPage<'a> {
     remaining_cols_on_page: std::vec::IntoIter<normalized::Column>,
     remaining_lines_in_col: std::vec::IntoIter<normalized::Line>,
     remaining_blocks_in_line: std::vec::IntoIter<normalized::InlineBlock>,
@@ -316,7 +316,7 @@ impl Iterator for BlocksFromPage<'_> {
 }
 
 impl normalized::Page {
-    fn into_streamed(self, default_language: &str) -> BlocksFromPage {
+    pub fn into_streamed(self, default_language: &str) -> BlocksFromPage {
         BlocksFromPage::new(self, default_language)
     }
 }
@@ -332,135 +332,6 @@ impl TryFrom<normalized::Text> for Vec<streamed::Block> {
         streamed_blocks.collect::<Result<Vec<_>, _>>()
     }
 }
-
-/*
-/// This does two main things:
-/// - unroll the hierarchy into a stream, inserting line and column breaks
-/// - Associate the correct language to every Block
-impl TryFrom<normalized::Text> for Vec<streamed::Block> {
-    type Error = StreamError;
-
-    fn try_from(value: normalized::Text) -> Result<Self, Self::Error> {
-        let mut res = Vec::with_capacity(
-            value
-                .columns
-                .iter()
-                .map(|c| c.lines.iter().map(|l| l.blocks.len()).sum::<usize>())
-                .sum(),
-        );
-
-        let mut current_language: String;
-        // the index of the column in logical ordering (i.e. getting larger when passing a
-        // column-spaning lacuna)
-        let mut col_idx = 1;
-        let num_of_cols = value.columns.len();
-        'col: for (defined_c_idx, col) in value.columns.into_iter().enumerate() {
-            if col.n != col_idx {
-                return Err(StreamError::ColumnIndexInconsistent(col_idx, col.n));
-            }
-            current_language = if let Some(new_lang) = col.lang {
-                new_lang
-            } else {
-                value.lang.clone()
-            };
-            let column_lang = current_language;
-            let num_of_lines = col.lines.len();
-            let mut line_idx = 1;
-            'line: for (defined_l_idx, line) in col.lines.into_iter().enumerate() {
-                if line.n != line_idx {
-                    return Err(StreamError::LineIndexInconsistent(line_idx, line.n));
-                }
-                current_language = if let Some(new_lang) = line.lang {
-                    new_lang
-                } else {
-                    column_lang.clone()
-                };
-                let line_lang = current_language.clone();
-                for block in line.blocks {
-                    current_language = if let Some(new_lang) = block.language() {
-                        new_lang.to_string()
-                    } else {
-                        line_lang.clone()
-                    };
-                    let streamed_block = (current_language.clone(), block).try_into()?;
-                    // break off if we start a multi-line or multi-column gap with this block
-                    match streamed_block {
-                        // a lacuna spanning multiple lines.
-                        // we increment the line-nr by the appropriate amount and continue
-                        // streaming from the next line defined in the xml
-                        //
-                        // There are n lines skipped, so the next defined line has index +n (from
-                        // skipped lines) +1 (from this line ending) relative to the current line
-                        // the `<gap>` is on.
-                        //
-                        // (the other lines are NOT to be defined in the xml, since they are taken
-                        // up by the `<gap>`)
-                        streamed::Block::Lacuna(streamed::Lacuna {
-                            unit: normalized::ExtentUnit::Line,
-                            n,
-                            ..
-                        }) => {
-                            line_idx += n + 1;
-                            res.push(streamed_block);
-                            continue 'line;
-                        }
-                        // a lacuna spanning multiple columns.
-                        // we increment the column-nr by the appropriate amount and continue
-                        // streaming from the next column defined in the xml
-                        streamed::Block::Lacuna(streamed::Lacuna {
-                            unit: normalized::ExtentUnit::Column,
-                            n,
-                            ..
-                        }) => {
-                            col_idx += n + 1;
-                            res.push(streamed_block);
-                            continue 'col;
-                        }
-                        // now we do the exact same thing for spaces
-                        streamed::Block::Space(streamed::Space {
-                            unit: normalized::ExtentUnit::Line,
-                            quantity,
-                            ..
-                        }) => {
-                            line_idx += quantity + 1;
-                            res.push(streamed_block);
-                            continue 'line;
-                        }
-                        // a lacuna spanning multiple columns.
-                        // we increment the column-nr by the appropriate amount and continue
-                        // streaming from the next column defined in the xml
-                        streamed::Block::Space(streamed::Space {
-                            unit: normalized::ExtentUnit::Column,
-                            quantity,
-                            ..
-                        }) => {
-                            col_idx += quantity + 1;
-                            res.push(streamed_block);
-                            continue 'col;
-                        }
-                        _ => {}
-                    }
-                    res.push(streamed_block);
-                }
-                // the line is now ended - insert a line break except for the last line
-                if defined_l_idx + 1 < num_of_lines {
-                    res.push(streamed::Block::Break(streamed::BreakType::Line));
-                }
-                line_idx += 1;
-            }
-            // the column is now ended - insert a column break except for the last column
-            if defined_c_idx + 1 < num_of_cols {
-                res.push(streamed::Block::Break(streamed::BreakType::Column));
-            }
-            col_idx += 1;
-        }
-
-        // The last element is always a columnbreak, which we drop again
-
-        Ok(res)
-    }
-}
-*/
 
 impl TryFrom<(String, normalized::InlineBlock)> for streamed::Block {
     type Error = StreamError;
@@ -583,7 +454,7 @@ impl TryFrom<streamed::Manuscript> for normalized::Manuscript {
 /// you want to unroll
 ///
 /// [`Page`]: normalized::Page
-fn transform_until_page_end(
+pub fn transform_until_page_end(
     stream: &mut impl Iterator<Item = streamed::Block>,
     page_nr: String,
 ) -> Result<(normalized::Page, Option<String>), StreamError> {
