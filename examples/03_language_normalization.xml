@@ -20,9 +20,6 @@
                     <collection>
 		    	collection
                     </collection>
-		    <idno>
-		    	idno
-		    </idno>
                     <msName>
 		    	msname
                     </msName>
@@ -43,6 +40,7 @@
     </teiHeader>
     <text>
         <body xml:lang="hbo-Hebr">
+		<div type="page" n="page1">
 		<div type="column" xml:lang="grc">
 			<div type="line">
 				<p>some text in a null-line in a grc column</p>
@@ -64,6 +62,17 @@
 				<p>some hbo-Hebr text by default</p>
 			</div>
 		</div>
+	</div>
+	<div type="page" n="page2" xml:lang="hbo-Phnx">
+		<div type="column">
+			<div type="line">
+				<p>Some text in hbo-Phnx</p>
+			</div>
+			<div type="line">
+				<p xml:lang="hbo-Hebr">But this is hbo-Hebr instead</p>
+			</div>
+		</div>
+	</div>
         </body>
     </text>
 </TEI>

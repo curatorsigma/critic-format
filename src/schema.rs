@@ -139,7 +139,11 @@ pub struct MsIdentifier {
     /// The collection this manuscript is a part of
     pub collection: Option<String>,
     /// Alternative identifiers (other then the main MS name, which is in the `<title>`
-    #[serde(rename = "altIdentifier", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "altIdentifier",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub alt_identifier: Vec<AltIdentifier>,
 }
 impl MsIdentifier {
@@ -1955,5 +1959,22 @@ mod test {
         let ser = quick_xml::se::to_string_with_root("TEI", &tei).unwrap();
         let re_de: Tei = quick_xml::de::from_str(&ser).unwrap();
         assert_eq!(re_de, tei);
+    }
+
+    /// We should be able to parse files without altIdentifiers given
+    #[test]
+    fn empty_alt_identifier() {
+        let xml = r#"<msIdentifier><institution>NLR</institution>\
+                  <collection>EVRII</collection></msIdentifier>"#;
+        let res: Result<MsIdentifier, _> = quick_xml::de::from_str(xml);
+        assert!(res.is_ok());
+        assert_eq!(
+            res.unwrap(),
+            MsIdentifier {
+                institution: Some("NLR".to_string()),
+                alt_identifier: vec![],
+                collection: Some("EVRII".to_string()),
+            }
+        );
     }
 }

@@ -20,6 +20,10 @@ pub enum StreamError {
     NoBlockWithLanguage,
     /// The name of the first page must be given as a leading PageBreak in the stream of blocks.
     FirstPageNameMissing,
+    /// There was a column without lines in it.
+    ///
+    /// This needs to be marked as a column spanning lacuna instead
+    NoLinesInColumn(i32),
 }
 impl core::fmt::Display for StreamError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -46,6 +50,12 @@ impl core::fmt::Display for StreamError {
                 write!(
                     f,
                     "The name of the first page must be given in a leading PageBreak"
+                )
+            }
+            Self::NoLinesInColumn(col_idx) => {
+                write!(
+                    f,
+                    "Column {col_idx} contained no lines. Please mark this as a column-spanning lacuna instead."
                 )
             }
         }
@@ -90,6 +100,10 @@ struct BlocksFromPage<'a> {
     ///
     /// When Some(x), will output PageBreak(x), taking ownership and leaving None here
     return_own_startbreak_next: Option<String>,
+    /// signals that the next Break(BreakType::Line) should be skipped
+    skip_next_linebreak: bool,
+    /// signals that the next Break(BreakType::Column) should be skipped
+    skip_next_columnbreak: bool,
 }
 impl<'a> BlocksFromPage<'a> {
     pub fn new(page: normalized::Page, default_language: &'a str) -> Self {
@@ -100,43 +114,87 @@ impl<'a> BlocksFromPage<'a> {
         } else {
             std::borrow::Cow::Borrowed(default_language)
         };
-        let mut col_iter = page.columns.into_iter();
-        // unroll the page into the column/line/block iterator
-        let first_col = col_iter.next();
-        let (first_col_lang, mut line_iter) =
-            if let Some(normalized::Column { lines, lang, .. }) = first_col {
-                (lang, lines.into_iter())
-            } else {
-                (None, vec![].into_iter())
-            };
-        let first_line = line_iter.next();
-        let (first_line_lang, block_iter) =
-            if let Some(normalized::Line { blocks, lang, .. }) = first_line {
-                (lang, blocks.into_iter())
-            } else {
-                (None, vec![].into_iter())
-            };
-        let language_in_col = first_col_lang.unwrap_or_else(|| {
-            // fall back to the language on this page
-            page.lang
-                // fall back to the default language of this MS
-                .unwrap_or_else(|| default_language.to_string())
-        });
-        // language of the first line if available
-        let current_language = first_line_lang
-            // fall back to the language of the first col
-            .unwrap_or_else(|| language_in_col.clone());
+        let col_iter = page.columns.into_iter();
         Self {
             remaining_cols_on_page: col_iter,
-            remaining_lines_in_col: line_iter,
-            remaining_blocks_in_line: block_iter,
+            remaining_lines_in_col: vec![].into_iter(),
+            remaining_blocks_in_line: vec![].into_iter(),
+            current_language: default_language.to_string(),
+            language_in_col: default_language.to_string(),
             default_language,
-            current_language,
-            language_in_col,
             col_idx: 0,
             line_idx: 0,
             return_own_startbreak_next: Some(page.n),
+            skip_next_linebreak: false,
+            // the column break after the initial page break has to be skipped
+            skip_next_columnbreak: true,
         }
+    }
+
+    /// Advance the internal state by one line, taking the data from `next_line` into the block
+    /// iterator and updating language.
+    ///
+    /// This also checks line index consistency and errors if the line index is inconsistent
+    fn load_next_line(&mut self, next_line: normalized::Line) -> Result<(), StreamError> {
+        // a new logical line has started - increase the logical line number
+        self.line_idx += 1;
+        // this lines language is either given, or supplied from the column
+        if let Some(new_lang) = next_line.lang {
+            self.current_language = new_lang.clone();
+        } else {
+            self.current_language = self.language_in_col.clone();
+        };
+        if self.line_idx != next_line.n {
+            return Err(StreamError::LineIndexInconsistent(
+                self.col_idx,
+                next_line.n,
+            ));
+        };
+        // these are the blocks on the new line
+        self.remaining_blocks_in_line = next_line.blocks.into_iter();
+        Ok(())
+    }
+
+    /// Advance the internal state by one column, taking the data from `next_column` into the block
+    /// iterator and update language.
+    ///
+    /// This also checks column index consistency and errors if the line index is inconsistent
+    ///
+    /// We immediately load the first line for this column as well.
+    ///
+    /// Returns:
+    /// - true IFF this was the first column loaded
+    fn load_next_column(&mut self, next_column: normalized::Column) -> Result<(), StreamError> {
+        self.col_idx += 1;
+        self.line_idx = 0;
+        // this columns language is either given, or supplied from the page
+        self.language_in_col = if let Some(new_lang) = next_column.lang {
+            new_lang.clone()
+        } else {
+            self.default_language.to_string()
+        };
+        self.current_language = self.language_in_col.clone();
+
+        if self.col_idx != next_column.n {
+            return Err(StreamError::ColumnIndexInconsistent(
+                self.col_idx,
+                next_column.n,
+            ));
+        };
+        // get the lines for the next column into our internal iterator
+        self.remaining_lines_in_col = next_column.lines.into_iter();
+        // now get the blocks for the first line into their iterator
+        match self.remaining_lines_in_col.next() {
+            Some(next_line) => {
+                if let Err(e) = self.load_next_line(next_line) {
+                    return Err(e);
+                };
+            }
+            None => {
+                return Err(StreamError::NoLinesInColumn(self.col_idx));
+            }
+        };
+        Ok(())
     }
 }
 impl<'a> Iterator for BlocksFromPage<'a> {
@@ -149,56 +207,47 @@ impl<'a> Iterator for BlocksFromPage<'a> {
             ))));
         };
 
-        // get the next block
+        // get the next block, or handle the case where the line/column has ended
         let Some(curr_block) = self.remaining_blocks_in_line.next() else {
             // this line is exhausted, go to the next one
-            self.remaining_blocks_in_line = match self.remaining_lines_in_col.next() {
-                Some(x) => {
-                    self.line_idx += 1;
-                    // this lines language is either given, or supplied from the column
-                    if let Some(new_lang) = x.lang {
-                        self.current_language = new_lang.clone();
+            match self.remaining_lines_in_col.next() {
+                Some(next_line) => {
+                    if let Err(e) = self.load_next_line(next_line) {
+                        return Some(Err(e));
+                    };
+                    // but for now, we need to return the line break - the next iteration will get
+                    // the first block of the new line
+                    if self.skip_next_linebreak {
+                        self.skip_next_linebreak = false;
+                        return self.next();
                     } else {
-                        self.current_language = self.language_in_col.clone();
-                    };
-                    if self.col_idx != x.n {
-                        return Some(Err(StreamError::ColumnIndexInconsistent(self.col_idx, x.n)));
-                    };
-                    x.blocks.into_iter()
+                        return Some(Ok(streamed::Block::Break(streamed::BreakType::Line)));
+                    }
                 }
                 // this column in its entirety is exhausted, go to the next
                 None => {
-                    self.col_idx += 1;
-                    self.line_idx = 0;
-                    self.remaining_lines_in_col = match self.remaining_cols_on_page.next() {
-                        Some(x) => {
-                            // this columns language is either given, or supplied from the page
-                            self.language_in_col = if let Some(new_lang) = x.lang {
-                                new_lang.clone()
-                            } else {
-                                self.default_language.to_string()
+                    match self.remaining_cols_on_page.next() {
+                        Some(next_column) => {
+                            if let Err(e) = self.load_next_column(next_column) {
+                                return Some(Err(e));
                             };
-                            self.current_language = self.language_in_col.clone();
-
-                            if self.line_idx != x.n {
-                                return Some(Err(StreamError::LineIndexInconsistent(
-                                    self.line_idx,
-                                    x.n,
+                            if self.skip_next_columnbreak {
+                                self.skip_next_columnbreak = false;
+                                return self.next();
+                            } else {
+                                return Some(Ok(streamed::Block::Break(
+                                    streamed::BreakType::Column,
                                 )));
                             };
-                            x.lines.into_iter()
                         }
-                        // there are no more columns, this iterator is done
+                        // there are no more columns, this page is done
+                        // Do not add final Line and Column breaks here
                         None => {
                             return None;
                         }
                     };
-                    // try getting a new line on the next go around
-                    return self.next();
                 }
             };
-            // try getting a new block on the next go around
-            return self.next();
         };
 
         let block_lang = curr_block
@@ -218,7 +267,7 @@ impl<'a> Iterator for BlocksFromPage<'a> {
             // streaming from the next line defined in the xml
             //
             // There are n lines skipped, so the next defined line has index +n (from
-            // skipped lines) +1 (from this line ending) relative to the current line
+            // skipped lines) relative to the current line
             // the `<gap>` is on.
             //
             // (the other lines are NOT to be defined in the xml, since they are taken
@@ -228,7 +277,8 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                 n,
                 ..
             }) => {
-                self.line_idx += n + 1;
+                self.line_idx += n;
+                self.skip_next_linebreak = true;
                 return Some(Ok(streamed_block));
             }
             // a lacuna spanning multiple columns.
@@ -239,7 +289,8 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                 n,
                 ..
             }) => {
-                self.col_idx += n + 1;
+                self.col_idx += n;
+                self.skip_next_columnbreak = true;
                 return Some(Ok(streamed_block));
             }
             // now we do the exact same thing for spaces
@@ -248,7 +299,8 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                 quantity,
                 ..
             }) => {
-                self.line_idx += quantity + 1;
+                self.line_idx += quantity;
+                self.skip_next_linebreak = true;
                 return Some(Ok(streamed_block));
             }
             // a lacuna spanning multiple columns.
@@ -259,7 +311,8 @@ impl<'a> Iterator for BlocksFromPage<'a> {
                 quantity,
                 ..
             }) => {
-                self.col_idx += quantity + 1;
+                self.col_idx += quantity;
+                self.skip_next_columnbreak = true;
                 return Some(Ok(streamed_block));
             }
             _ => {}
@@ -639,6 +692,7 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
         let mut langs_in_text = HashMap::<String, i32>::new();
         let mut next_page_name = match blocks_iter.next() {
             None => {
+                // empty text, just return a trivial Text
                 most_common_lang(&langs_in_text);
                 return Ok(normalized::Text {
                     lang: String::default(),
@@ -652,15 +706,6 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
         };
         loop {
             let (this_page, new_name) = transform_until_page_end(&mut blocks_iter, next_page_name)?;
-            let Some(y) = new_name else {
-                return Ok(normalized::Text {
-                    lang: most_common_lang(&langs_in_text)
-                        .unwrap_or_default()
-                        .to_string(),
-                    pages,
-                });
-            };
-            next_page_name = y;
             let most_common_lang_in_page = this_page
                 .lang
                 .as_ref()
@@ -671,6 +716,20 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
                 langs_in_text.insert(most_common_lang_in_page.to_string(), 1);
             }
             pages.push(this_page);
+            let Some(y) = new_name else {
+                // the stream has ended without producing a name for the next page
+                // (i.e. there is no next page)
+                // Now normalize Languages over the pages
+                let most_common_lang = most_common_lang(&langs_in_text)
+                    .unwrap_or_default()
+                    .to_string();
+                normalize_language_over_pages(&mut pages, &most_common_lang);
+                return Ok(normalized::Text {
+                    lang: most_common_lang,
+                    pages,
+                });
+            };
+            next_page_name = y;
         }
     }
 }
@@ -976,6 +1035,18 @@ fn normalize_language<'b>(
     Ok(most_common_lang)
 }
 
+/// Iterate over pages, remove language on pages where they are the same as the language of the
+/// entire MS
+fn normalize_language_over_pages(pages: &mut Vec<normalized::Page>, most_common_lang: &str) {
+    for page in pages {
+        if let Some(ref most_common_lang_in_page) = page.lang {
+            if most_common_lang_in_page == most_common_lang {
+                page.lang = None;
+            }
+        }
+    }
+}
+
 impl From<streamed::Correction> for normalized::Correction {
     fn from(value: streamed::Correction) -> Self {
         normalized::Correction {
@@ -1040,7 +1111,7 @@ mod test {
     use crate::normalized::Abbreviation;
     use crate::streamed;
 
-    /// We should be able to stream a normalized text
+    /// In this example text, a line index is inconsistent
     #[test]
     fn stream_lines_inconsistent() {
         let xml = include_str!("../examples/01_all_elements.xml");
@@ -1061,21 +1132,24 @@ mod test {
         let xml = include_str!("../examples/02_lines_consistent.xml");
         let xml_res: Result<crate::schema::Tei, _> = quick_xml::de::from_str(xml);
         assert!(xml_res.is_ok());
+        dbg!(&xml_res);
         let norm_res: Result<crate::normalized::Manuscript, _> = xml_res.unwrap().try_into();
         assert!(norm_res.is_ok());
+        dbg!(&norm_res);
         let streamed_res: Result<streamed::Manuscript, _> = norm_res.unwrap().try_into();
+        dbg!(&streamed_res);
         assert!(streamed_res.is_ok());
         let expected = streamed::Manuscript {
             meta: streamed::Meta {
-                name: "Der Name voms dem Manuskripts".to_string(),
-                page_nr: "34 verso".to_string(),
-                title: "Manuskript Name folio 34 verso.".to_string(),
+                alt_identifier: vec![],
+                title: "Manuskript Name".to_string(),
                 institution: Some("University of does-not-exist".to_string()),
                 collection: Some("Collectors Edition 2 electric boogaloo".to_string()),
                 hand_desc: Some("There are two recognizable Hands: hand1 and hand2.".to_string()),
                 script_desc: Some("Die Schrift in diesem Manuskript gibt es.".to_string()),
             },
             content: vec![
+                streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
                 streamed::Block::Text(streamed::Paragraph {
                     lang: "hbo-Hebr".to_string(),
                     content: "line 1 content. This line is completely preserved.".to_string(),
@@ -1180,26 +1254,33 @@ mod test {
     fn stream_language_1() {
         let normalized = normalized::Text {
             lang: "hbo-Hebr".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
                     lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                    lines: vec![normalized::Line {
                         lang: None,
-                        content: "text in hbo-Hebr".to_string(),
-                    })],
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                            lang: None,
+                            content: "text in hbo-Hebr".to_string(),
+                        })],
+                    }],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
-            vec![streamed::Block::Text(streamed::Paragraph {
-                lang: "hbo-Hebr".to_string(),
-                content: "text in hbo-Hebr".to_string()
-            }),]
+            vec![
+                streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "hbo-Hebr".to_string(),
+                    content: "text in hbo-Hebr".to_string()
+                }),
+            ]
         );
     }
 
@@ -1207,26 +1288,33 @@ mod test {
     fn stream_language_2() {
         let normalized = normalized::Text {
             lang: "hbo-Hebr".to_string(),
-            columns: vec![normalized::Column {
-                lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
-                    lang: Some("grc".to_string()),
+            pages: vec![normalized::Page {
+                lang: Some("syr".to_string()),
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
+                    lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                        lang: None,
-                        content: "text".to_string(),
-                    })],
+                    lines: vec![normalized::Line {
+                        lang: Some("grc".to_string()),
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                            lang: None,
+                            content: "text".to_string(),
+                        })],
+                    }],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
-            vec![streamed::Block::Text(streamed::Paragraph {
-                lang: "grc".to_string(),
-                content: "text".to_string()
-            }),]
+            vec![
+                streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
+                streamed::Block::Text(streamed::Paragraph {
+                    lang: "grc".to_string(),
+                    content: "text".to_string()
+                }),
+            ]
         );
     }
 
@@ -1234,41 +1322,46 @@ mod test {
     fn stream_language_3() {
         let normalized = normalized::Text {
             lang: "hbo-Hebr".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![
-                    normalized::Line {
-                        lang: Some("grc".to_string()),
-                        n: 1,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
+                    lang: None,
+                    n: 1,
+                    lines: vec![
+                        normalized::Line {
+                            lang: Some("grc".to_string()),
+                            n: 1,
+                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                                lang: None,
+                                content: "text".to_string(),
+                            })],
+                        },
+                        normalized::Line {
+                            lang: Some("grc".to_string()),
+                            n: 2,
+                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                                lang: None,
+                                content: "text".to_string(),
+                            })],
+                        },
+                        normalized::Line {
                             lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                    normalized::Line {
-                        lang: Some("grc".to_string()),
-                        n: 2,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                    normalized::Line {
-                        lang: None,
-                        n: 3,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                ],
+                            n: 3,
+                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                                lang: None,
+                                content: "text".to_string(),
+                            })],
+                        },
+                    ],
+                }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
             vec![
+                streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
                 streamed::Block::Text(streamed::Paragraph {
                     lang: "grc".to_string(),
                     content: "text".to_string()
@@ -1288,47 +1381,11 @@ mod test {
         let destreamed: normalized::Text = streamed.try_into().unwrap();
         let expected = normalized::Text {
             lang: "grc".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![
-                    normalized::Line {
-                        lang: None,
-                        n: 1,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                    normalized::Line {
-                        lang: None,
-                        n: 2,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                    normalized::Line {
-                        lang: Some("hbo-Hebr".to_string()),
-                        n: 3,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    },
-                ],
-            }],
-        };
-        assert_eq!(expected, destreamed);
-    }
-
-    #[test]
-    fn stream_language_4() {
-        let normalized = normalized::Text {
-            lang: "hbo-Hebr".to_string(),
-            columns: vec![
-                normalized::Column {
-                    lang: Some("grc".to_string()),
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
+                    lang: None,
                     n: 1,
                     lines: vec![
                         normalized::Line {
@@ -1340,7 +1397,7 @@ mod test {
                             })],
                         },
                         normalized::Line {
-                            lang: Some("hbo-Hebr".to_string()),
+                            lang: None,
                             n: 2,
                             blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
                                 lang: None,
@@ -1348,7 +1405,7 @@ mod test {
                             })],
                         },
                         normalized::Line {
-                            lang: None,
+                            lang: Some("hbo-Hebr".to_string()),
                             n: 3,
                             blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
                                 lang: None,
@@ -1356,25 +1413,76 @@ mod test {
                             })],
                         },
                     ],
-                },
-                normalized::Column {
-                    lang: Some("hbo-Hebr".to_string()),
-                    n: 2,
-                    lines: vec![normalized::Line {
-                        lang: None,
+                }],
+            }],
+        };
+        assert_eq!(expected, destreamed);
+    }
+
+    #[test]
+    fn stream_language_4() {
+        let normalized = normalized::Text {
+            lang: "hbo-Hebr".to_string(),
+            pages: vec![normalized::Page {
+                lang: None,
+                n: "page1".to_string(),
+                columns: vec![
+                    normalized::Column {
+                        lang: Some("grc".to_string()),
                         n: 1,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: Some("grc".to_string()),
-                            content: "text".to_string(),
-                        })],
-                    }],
-                },
-            ],
+                        lines: vec![
+                            normalized::Line {
+                                lang: None,
+                                n: 1,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                            normalized::Line {
+                                lang: Some("hbo-Hebr".to_string()),
+                                n: 2,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                            normalized::Line {
+                                lang: None,
+                                n: 3,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                        ],
+                    },
+                    normalized::Column {
+                        lang: Some("hbo-Hebr".to_string()),
+                        n: 2,
+                        lines: vec![normalized::Line {
+                            lang: None,
+                            n: 1,
+                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                                lang: Some("grc".to_string()),
+                                content: "text".to_string(),
+                            })],
+                        }],
+                    },
+                ],
+            }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
         assert_eq!(
             streamed,
             vec![
+                streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
                 streamed::Block::Text(streamed::Paragraph {
                     lang: "grc".to_string(),
                     content: "text".to_string()
@@ -1399,50 +1507,60 @@ mod test {
         let destreamed: normalized::Text = streamed.try_into().unwrap();
         let expected = normalized::Text {
             lang: "grc".to_string(),
-            columns: vec![
-                normalized::Column {
-                    lang: None,
-                    n: 1,
-                    lines: vec![
-                        normalized::Line {
+            pages: vec![normalized::Page {
+                lang: None,
+                n: "page1".to_string(),
+                columns: vec![
+                    normalized::Column {
+                        lang: None,
+                        n: 1,
+                        lines: vec![
+                            normalized::Line {
+                                lang: None,
+                                n: 1,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                            normalized::Line {
+                                lang: Some("hbo-Hebr".to_string()),
+                                n: 2,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                            normalized::Line {
+                                lang: None,
+                                n: 3,
+                                blocks: vec![normalized::InlineBlock::Text(
+                                    normalized::Paragraph {
+                                        lang: None,
+                                        content: "text".to_string(),
+                                    },
+                                )],
+                            },
+                        ],
+                    },
+                    normalized::Column {
+                        lang: None,
+                        n: 2,
+                        lines: vec![normalized::Line {
                             lang: None,
                             n: 1,
                             blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
                                 lang: None,
                                 content: "text".to_string(),
                             })],
-                        },
-                        normalized::Line {
-                            lang: Some("hbo-Hebr".to_string()),
-                            n: 2,
-                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                                lang: None,
-                                content: "text".to_string(),
-                            })],
-                        },
-                        normalized::Line {
-                            lang: None,
-                            n: 3,
-                            blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                                lang: None,
-                                content: "text".to_string(),
-                            })],
-                        },
-                    ],
-                },
-                normalized::Column {
-                    lang: None,
-                    n: 2,
-                    lines: vec![normalized::Line {
-                        lang: None,
-                        n: 1,
-                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
-                            lang: None,
-                            content: "text".to_string(),
-                        })],
-                    }],
-                },
-            ],
+                        }],
+                    },
+                ],
+            }],
         };
         assert_eq!(expected, destreamed);
     }
@@ -1452,24 +1570,31 @@ mod test {
     fn stream_final_breaks() {
         let normalized: normalized::Text = normalized::Text {
             lang: "lang".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
                     lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                    lines: vec![normalized::Line {
                         lang: None,
-                        content: "content".to_string(),
-                    })],
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Text(normalized::Paragraph {
+                            lang: None,
+                            content: "content".to_string(),
+                        })],
+                    }],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
-        let expected = vec![streamed::Block::Text(streamed::Paragraph {
-            lang: "lang".to_string(),
-            content: "content".to_string(),
-        })];
+        let expected = vec![
+            streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
+            streamed::Block::Text(streamed::Paragraph {
+                lang: "lang".to_string(),
+                content: "content".to_string(),
+            }),
+        ];
         assert_eq!(streamed, expected);
     }
 
@@ -1478,55 +1603,66 @@ mod test {
     fn choice_language() {
         let normalized: normalized::Text = normalized::Text {
             lang: "lang".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
                     lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
-                        lang: Some("IRRELEVANT".to_string()),
-                        surface: crate::schema::AbbrSurface {
-                            lang: Some("grc".to_string()),
-                            content: "πιπι".to_string(),
-                        },
-                        expansion: crate::schema::AbbrExpansion {
-                            lang: Some("hbo-Hebr".to_string()),
-                            content: "יהוה".to_string(),
-                        },
-                    })],
+                    lines: vec![normalized::Line {
+                        lang: None,
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
+                            lang: Some("IRRELEVANT".to_string()),
+                            surface: crate::schema::AbbrSurface {
+                                lang: Some("grc".to_string()),
+                                content: "πιπι".to_string(),
+                            },
+                            expansion: crate::schema::AbbrExpansion {
+                                lang: Some("hbo-Hebr".to_string()),
+                                content: "יהוה".to_string(),
+                            },
+                        })],
+                    }],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
-        let expected = vec![streamed::Block::Abbreviation(streamed::Abbreviation {
-            surface_lang: "grc".to_string(),
-            surface: "πιπι".to_string(),
-            expansion_lang: "hbo-Hebr".to_string(),
-            expansion: "יהוה".to_string(),
-        })];
+        let expected = vec![
+            streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
+            streamed::Block::Abbreviation(streamed::Abbreviation {
+                surface_lang: "grc".to_string(),
+                surface: "πιπι".to_string(),
+                expansion_lang: "hbo-Hebr".to_string(),
+                expansion: "יהוה".to_string(),
+            }),
+        ];
         assert_eq!(streamed, expected);
 
         let destreamed: normalized::Text = streamed.try_into().unwrap();
         let expected_destreamed: normalized::Text = normalized::Text {
             lang: "hbo-Hebr".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
                     lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
+                    lines: vec![normalized::Line {
                         lang: None,
-                        surface: crate::schema::AbbrSurface {
-                            lang: Some("grc".to_string()),
-                            content: "πιπι".to_string(),
-                        },
-                        expansion: crate::schema::AbbrExpansion {
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Abbreviation(Abbreviation {
                             lang: None,
-                            content: "יהוה".to_string(),
-                        },
-                    })],
+                            surface: crate::schema::AbbrSurface {
+                                lang: Some("grc".to_string()),
+                                content: "πιπι".to_string(),
+                            },
+                            expansion: crate::schema::AbbrExpansion {
+                                lang: None,
+                                content: "יהוה".to_string(),
+                            },
+                        })],
+                    }],
                 }],
             }],
         };
@@ -1537,47 +1673,54 @@ mod test {
     fn correction_language() {
         let normalized: normalized::Text = normalized::Text {
             lang: "hbo-Hebr".to_string(),
-            columns: vec![normalized::Column {
+            pages: vec![normalized::Page {
                 lang: None,
-                n: 1,
-                lines: vec![normalized::Line {
+                n: "page1".to_string(),
+                columns: vec![normalized::Column {
                     lang: None,
                     n: 1,
-                    blocks: vec![normalized::InlineBlock::Correction(
-                        normalized::Correction {
-                            lang: None,
-                            versions: vec![
-                                normalized::Version {
-                                    lang: None,
-                                    hand: None,
-                                    content: "יהוה".to_string(),
-                                },
-                                normalized::Version {
-                                    lang: Some("hbo-Phnx".to_string()),
-                                    hand: None,
-                                    content: "𐤉𐤄𐤅𐤄".to_string(),
-                                },
-                            ],
-                        },
-                    )],
+                    lines: vec![normalized::Line {
+                        lang: None,
+                        n: 1,
+                        blocks: vec![normalized::InlineBlock::Correction(
+                            normalized::Correction {
+                                lang: None,
+                                versions: vec![
+                                    normalized::Version {
+                                        lang: None,
+                                        hand: None,
+                                        content: "יהוה".to_string(),
+                                    },
+                                    normalized::Version {
+                                        lang: Some("hbo-Phnx".to_string()),
+                                        hand: None,
+                                        content: "𐤉𐤄𐤅𐤄".to_string(),
+                                    },
+                                ],
+                            },
+                        )],
+                    }],
                 }],
             }],
         };
         let streamed: Vec<streamed::Block> = normalized.try_into().unwrap();
-        let expected = vec![streamed::Block::Correction(streamed::Correction {
-            versions: vec![
-                streamed::Version {
-                    lang: "hbo-Hebr".to_string(),
-                    hand: None,
-                    content: "יהוה".to_string(),
-                },
-                streamed::Version {
-                    lang: "hbo-Phnx".to_string(),
-                    hand: None,
-                    content: "𐤉𐤄𐤅𐤄".to_string(),
-                },
-            ],
-        })];
+        let expected = vec![
+            streamed::Block::Break(streamed::BreakType::Page("page1".to_string())),
+            streamed::Block::Correction(streamed::Correction {
+                versions: vec![
+                    streamed::Version {
+                        lang: "hbo-Hebr".to_string(),
+                        hand: None,
+                        content: "יהוה".to_string(),
+                    },
+                    streamed::Version {
+                        lang: "hbo-Phnx".to_string(),
+                        hand: None,
+                        content: "𐤉𐤄𐤅𐤄".to_string(),
+                    },
+                ],
+            }),
+        ];
         assert_eq!(streamed, expected);
     }
 }

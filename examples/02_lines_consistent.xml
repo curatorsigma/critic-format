@@ -5,7 +5,7 @@
         <fileDesc>
             <titleStmt>
                 <title>
-                    Manuskript Name folio 34 verso.
+                    Manuskript Name
                 </title>
             </titleStmt>
             <publicationStmt>
@@ -43,6 +43,7 @@
     </teiHeader>
     <text>
         <body xml:lang="hbo-Hebr">
+	    <div type="page" n="page1">
             <div type="column" n="1">
 	    	<div type="line" n="1">
 			<p>line 1 content. This line is completely preserved.</p>
@@ -73,6 +74,7 @@
 	    	<div type="line" n="1">
 			<p>text</p>
 		</div>
+	    </div>
 	    </div>
         </body>
     </text>

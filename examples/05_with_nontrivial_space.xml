@@ -5,7 +5,7 @@
         <fileDesc>
             <titleStmt>
                 <title>
-                    Manuskript Name folio 34 verso.
+                    Manuskript Name
                 </title>
             </titleStmt>
             <publicationStmt>
@@ -20,9 +20,6 @@
                     <collection>
                     Collectors Edition 2 electric boogaloo
                     </collection>
-		    <idno>
-		    	34 verso
-		    </idno>
                     <msName>
                         Der Name voms dem Manuskripts
                     </msName>
@@ -43,6 +40,7 @@
     </teiHeader>
     <text>
         <body xml:lang="hbo-Hebr">
+		<div type="page" n="34_v">
             <div type="column" n="1">
 	    	<div type="line" n="1">
 			<p>line 1 content. This line is completely preserved.</p>
@@ -74,6 +72,7 @@
 			<p>text</p>
 		</div>
 	    </div>
+    </div>
         </body>
     </text>
 </TEI>
