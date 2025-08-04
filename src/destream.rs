@@ -314,6 +314,14 @@ impl Iterator for BlocksFromPage<'_> {
         Some(Ok(streamed_block))
     }
 }
+/// Fuse:
+///
+/// This iterator only returns [`None`], when `self.remaining_cols_on_page` is consumed entirely.
+/// Since `self.remaining_cols_on_page` is [`std::vec::IntoIter`] which is
+/// [`Fused`], [`BlocksFromPage`] is also [`Fused`].
+///
+/// [`Fused`]: std::iter::FusedIterator
+impl std::iter::FusedIterator for BlocksFromPage<'_> {}
 
 impl normalized::Page {
     pub fn into_streamed(self, default_language: &str) -> BlocksFromPage {
