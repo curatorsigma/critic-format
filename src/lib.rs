@@ -82,13 +82,13 @@ pub fn to_xml(ms: crate::streamed::Manuscript) -> Result<String, ConversionError
 /// Note that any excess blocks after the first pagebreak are discarded.
 /// In particular, the first pagebreak giving this pages name MUST NOT be present
 pub fn page_to_xml(
-    blocks: Vec<streamed::Block>,
+    blocks: impl IntoIterator<Item = streamed::Block>,
     pagename: String,
 ) -> Result<String, ConversionError> {
     let (page, _next_name) = transform_until_page_end(&mut blocks.into_iter(), pagename)
         .map_err(ConversionError::DeStream)?;
     let denormed: crate::schema::Page = page.try_into().map_err(ConversionError::DeNorm)?;
-    quick_xml::se::to_string_with_root("TEI", &denormed).map_err(ConversionError::Ser)
+    quick_xml::se::to_string_with_root("div", &denormed).map_err(ConversionError::Ser)
 }
 
 /// Directly Convert from a [`BufRead`](std::io::BufRead) over XML data to a streamed Manuscript.
@@ -156,5 +156,14 @@ mod test {
         let xml_again = super::page_to_xml(ms_cloned.0, ms_cloned.1).unwrap();
         let ms_again = super::page_from_xml(xml_again.as_bytes(), "grc").unwrap();
         assert_eq!(ms, ms_again);
+    }
+
+    #[test]
+    fn page_to_xml() {
+        let blocks = vec![
+            crate::streamed::Block::Text(crate::streamed::Paragraph { lang: "ger".to_string(), content: "Das ist content.".to_string()})
+        ];
+        let to_xml = super::page_to_xml(blocks, "page1".to_string()).unwrap();
+        assert_eq!(to_xml, r#"<div xml:lang="ger" type="page" n="page1"><div type="column" n="1"><div type="line" n="1"><p>Das ist content.</p></div></div></div>"#);
     }
 }
