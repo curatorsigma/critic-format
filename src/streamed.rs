@@ -60,6 +60,27 @@ impl Block {
             }
         }
     }
+
+    /// Ignores the actual data and returns the [`BlockType`] of this [`Block`].
+    #[must_use]
+    pub fn block_type(&self) -> BlockType {
+        match self {
+            Block::Correction(_) => BlockType::Correction,
+            Block::Text(_) => BlockType::Text,
+            Block::Anchor(_) => BlockType::Anchor,
+            Block::Break(_) => BlockType::Break,
+            Block::Abbreviation(_) => BlockType::Abbreviation,
+            Block::Lacuna(_) => BlockType::Lacuna,
+            Block::Uncertain(_) => BlockType::Uncertain,
+            Block::Space(_) => BlockType::Space,
+        }
+    }
+}
+/// Ignores the actual data and returns the [`BlockType`] of this [`Block`].
+impl From<Block> for BlockType {
+    fn from(value: Block) -> Self {
+        value.block_type()
+    }
 }
 pub trait FromTypeLangAndContent {
     fn from_type_lang_and_content(block_type: BlockType, lang: String, content: String) -> Self;
@@ -106,8 +127,8 @@ impl FromTypeLangAndContent for Block {
             BlockType::Break => Self::Break(BreakType::default()),
             BlockType::Space => Self::Space(Space::default()),
             BlockType::Lacuna => Self::Lacuna(Lacuna {
-                unit: ExtentUnit::default(),
-                n: 1,
+                unit: ExtentUnit::Character,
+                n: content.chars().count().try_into().unwrap_or(1),
                 reason: String::default(),
                 cert: None,
             }),

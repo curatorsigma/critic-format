@@ -562,11 +562,9 @@ pub fn transform_until_page_end(
     ))
 }
 
-impl TryFrom<Vec<streamed::Block>> for normalized::Text {
-    type Error = StreamError;
-
-    fn try_from(value: Vec<streamed::Block>) -> Result<Self, Self::Error> {
-        let mut blocks_iter = value.into_iter();
+impl FromIterator<streamed::Block> for Result<normalized::Text, StreamError> {
+    fn from_iter<T: IntoIterator<Item = streamed::Block>>(iter: T) -> Self {
+        let mut blocks_iter = iter.into_iter();
         let mut pages = Vec::new();
         let mut langs_in_text = HashMap::<String, i32>::new();
         let mut next_page_name = match blocks_iter.next() {
@@ -610,6 +608,14 @@ impl TryFrom<Vec<streamed::Block>> for normalized::Text {
             };
             next_page_name = y;
         }
+    }
+}
+
+impl TryFrom<Vec<streamed::Block>> for normalized::Text {
+    type Error = StreamError;
+
+    fn try_from(value: Vec<streamed::Block>) -> Result<Self, Self::Error> {
+        value.into_iter().collect()
     }
 }
 
