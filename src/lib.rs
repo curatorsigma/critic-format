@@ -9,6 +9,7 @@ pub mod destream;
 pub mod normalized;
 pub mod schema;
 pub mod streamed;
+pub mod surface_form;
 
 /// The problems that can occur when converting XML to the internal formats.
 #[derive(Debug)]
