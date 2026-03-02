@@ -32,6 +32,19 @@ pub struct SurfaceIndex {
     /// The byte position in the content of the block this index is positioned in.
     position_in_block: usize,
 }
+impl SurfaceIndex {
+    pub fn position_in_raw(&self) -> usize {
+        self.position_in_raw
+    }
+
+    pub fn block_position(&self) -> usize {
+        self.block_position
+    }
+
+    pub fn position_in_block(&self) -> usize {
+        self.position_in_block
+    }
+}
 
 /// A portion of cleansed base text with the index between this cleansed form and the complete
 /// marked up form.
@@ -63,6 +76,7 @@ impl SurfaceBaseText {
     }
 
     /// Take the chunk of basetext and extract the surface text.
+    /// Characters not in `equality_alphabet` are ignored
     ///
     /// For Corrections, only the last version will be considered the base text.
     ///
@@ -104,7 +118,6 @@ impl SurfaceBaseText {
     }
 
     /// Take the chunk of basetext and cleanse it:
-    /// Characters not in `equality_alphabet` are ignored
     ///
     /// ```
     /// use critic_format::streamed::{Block, BreakType, Paragraph};
