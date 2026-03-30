@@ -137,7 +137,7 @@ impl FromTypeLangAndContent for Block {
                 lang,
                 cert: None,
                 agent: String::default(),
-                content: content.to_string(),
+                content: content.clone(),
             }),
             BlockType::Correction => Self::Correction(Correction {
                 versions: vec![Version {

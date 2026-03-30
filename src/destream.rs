@@ -326,7 +326,7 @@ impl core::iter::FusedIterator for BlocksFromPage<'_> {}
 
 impl normalized::Page {
     #[must_use]
-    pub fn into_streamed(self, default_language: &str) -> BlocksFromPage {
+    pub fn into_streamed(self, default_language: &str) -> BlocksFromPage<'_> {
         BlocksFromPage::new(self, default_language)
     }
 }
@@ -590,7 +590,7 @@ impl FromIterator<streamed::Block> for Result<normalized::Text, StreamError> {
             if let Some(this_lang_val) = langs_in_text.get_mut(most_common_lang_in_page) {
                 *this_lang_val += 1;
             } else {
-                langs_in_text.insert(most_common_lang_in_page.to_string(), 1);
+                langs_in_text.insert(most_common_lang_in_page.clone(), 1);
             }
             pages.push(this_page);
             let Some(y) = new_name else {
@@ -923,10 +923,10 @@ fn normalize_language<'b>(
 /// entire MS
 fn normalize_language_over_pages(pages: &mut Vec<normalized::Page>, most_common_lang: &str) {
     for page in pages {
-        if let Some(ref most_common_lang_in_page) = page.lang {
-            if most_common_lang_in_page == most_common_lang {
-                page.lang = None;
-            }
+        if let Some(ref most_common_lang_in_page) = page.lang
+            && most_common_lang_in_page == most_common_lang
+        {
+            page.lang = None;
         }
     }
 }

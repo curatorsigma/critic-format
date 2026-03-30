@@ -37,7 +37,11 @@ impl Iterator for SplitWhitespaceIndices<'_> {
 
         // forward all non-whitespaces
         let mut split_off_bytes = 0;
-        for char in self.remaining_str.chars().take_while(|c| !c.is_whitespace()) {
+        for char in self
+            .remaining_str
+            .chars()
+            .take_while(|c| !c.is_whitespace())
+        {
             split_off_bytes += char.len_utf8();
             self.current_char_index += 1;
         }
@@ -75,7 +79,6 @@ fn whitespace_indices_long_scalar() {
     let whitespace_indices = SplitWhitespaceIndices::new(input).collect::<Vec<_>>();
     assert_eq!(whitespace_indices, vec![0, 7]);
 }
-
 
 /// Index between a position in the cleansed text and the marked up basetext.
 #[derive(Debug)]

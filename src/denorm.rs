@@ -164,10 +164,10 @@ fn try_norm_pages(pages: Vec<schema::Page>) -> Result<Vec<normalized::Page>, Nor
 
     let mut last_name = None;
     for page in pages {
-        if let Some(l) = last_name {
-            if l >= page.n {
-                return Err(NormalizationError::PageNumbersNotOrdered(l, page.n));
-            }
+        if let Some(l) = last_name
+            && l >= page.n
+        {
+            return Err(NormalizationError::PageNumbersNotOrdered(l, page.n));
         }
         last_name = Some(page.n.clone());
         res.push(page.try_into()?);
