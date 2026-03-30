@@ -5,42 +5,100 @@
 
 use crate::streamed::Block;
 
-fn addr_of(s: &str) -> usize {
-    s.as_ptr() as usize
+/// Split a Char at whitespaces and return the char indices at which words begin
+pub struct SplitWhitespaceIndices<'a> {
+    /// the remaining str
+    remaining_str: &'a str,
+    current_char_index: usize,
 }
+impl<'a> SplitWhitespaceIndices<'a> {
+    #[must_use]
+    pub fn new(input: &'a str) -> Self {
+        Self {
+            remaining_str: input,
+            current_char_index: 0,
+        }
+    }
+}
+impl Iterator for SplitWhitespaceIndices<'_> {
+    type Item = usize;
+    fn next(&mut self) -> Option<Self::Item> {
+        // forward all whitespaces
+        let mut split_off_bytes = 0;
+        for char in self.remaining_str.chars().take_while(|c| c.is_whitespace()) {
+            split_off_bytes += char.len_utf8();
+            self.current_char_index += 1;
+        }
+        self.remaining_str = &self.remaining_str[split_off_bytes..];
+        if self.remaining_str.is_empty() {
+            return None;
+        }
+        let res = self.current_char_index;
 
-/// Get the positions of word starts in `s`.
-fn split_whitespace_indices(s: &str) -> impl Iterator<Item = usize> + use<'_> {
-    s.split_whitespace()
-        .map(move |sub| (addr_of(sub) - addr_of(s)))
+        // forward all non-whitespaces
+        let mut split_off_bytes = 0;
+        for char in self.remaining_str.chars().take_while(|c| !c.is_whitespace()) {
+            split_off_bytes += char.len_utf8();
+            self.current_char_index += 1;
+        }
+        self.remaining_str = &self.remaining_str[split_off_bytes..];
+
+        Some(res)
+    }
 }
 
 #[test]
 fn whitespace_indices() {
     let input = "Hi I am a string with whitespaces.";
-    let whitespace_indices = split_whitespace_indices(input).collect::<Vec<_>>();
+    let whitespace_indices = SplitWhitespaceIndices::new(input).collect::<Vec<_>>();
     assert_eq!(whitespace_indices, vec![0, 3, 5, 8, 10, 17, 22]);
 }
+
+#[test]
+fn whitespace_indices_whitespace_end() {
+    let input = "Hi I am a string with whitespaces-at-the-ends.   ";
+    let whitespace_indices = SplitWhitespaceIndices::new(input).collect::<Vec<_>>();
+    assert_eq!(whitespace_indices, vec![0, 3, 5, 8, 10, 17, 22]);
+}
+
+#[test]
+fn whitespace_indices_whitespace_start() {
+    let input = "   \t Hi I am a string with whitespaces-at-the-start.";
+    let whitespace_indices = SplitWhitespaceIndices::new(input).collect::<Vec<_>>();
+    assert_eq!(whitespace_indices, vec![5, 8, 10, 13, 15, 22, 27]);
+}
+
+/// The position returned is the character index, not a byte position
+#[test]
+fn whitespace_indices_long_scalar() {
+    let input = "word1\u{10ffff} word2";
+    let whitespace_indices = SplitWhitespaceIndices::new(input).collect::<Vec<_>>();
+    assert_eq!(whitespace_indices, vec![0, 7]);
+}
+
 
 /// Index between a position in the cleansed text and the marked up basetext.
 #[derive(Debug)]
 pub struct SurfaceIndex {
-    /// The byte index in the raw text where this index is positioned.
+    /// The char position in the raw text where this index is positioned.
     position_in_raw: usize,
-    /// The block of the input, where this index is positioned in.
+    /// The block of the input where this index is positioned.
     block_position: usize,
-    /// The byte position in the content of the block this index is positioned in.
+    /// The index in the block where this index is positioned.
     position_in_block: usize,
 }
 impl SurfaceIndex {
+    #[must_use]
     pub fn position_in_raw(&self) -> usize {
         self.position_in_raw
     }
 
+    #[must_use]
     pub fn block_position(&self) -> usize {
         self.block_position
     }
 
+    #[must_use]
     pub fn position_in_block(&self) -> usize {
         self.position_in_block
     }
@@ -161,7 +219,7 @@ impl SurfaceBaseText {
             content.to_string()
         };
         for (word_idx, word_position) in
-            split_whitespace_indices(&equality_cleansed_paragraph).enumerate()
+            SplitWhitespaceIndices::new(&equality_cleansed_paragraph).enumerate()
         {
             self.indexmap.push(SurfaceIndex {
                 position_in_raw: self.raw_text.len() + word_position,
