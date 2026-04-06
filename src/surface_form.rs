@@ -91,16 +91,25 @@ pub struct SurfaceIndex {
     position_in_block: usize,
 }
 impl SurfaceIndex {
+    /// The character position in the raw text where this [`SurfaceIndex`] is positioned.
+    ///
+    /// This is a character index, not a byte index.
     #[must_use]
     pub fn position_in_raw(&self) -> usize {
         self.position_in_raw
     }
 
+    /// The block index where this [`SurfaceIndex`] is positioned.
+    ///
+    /// This is the index in the actual `[Vec<Block>]`.
     #[must_use]
     pub fn block_position(&self) -> usize {
         self.block_position
     }
 
+    /// The index of the word where this [`SurfaceIndex`] is positioned.
+    ///
+    /// This is the 0-based index of the word inside the block this [`SurfaceIndex`] belongs to.
     #[must_use]
     pub fn position_in_block(&self) -> usize {
         self.position_in_block

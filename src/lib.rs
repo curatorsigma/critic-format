@@ -75,7 +75,9 @@ pub fn to_xml(ms: crate::streamed::Manuscript) -> Result<String, ConversionError
     ))
 }
 
-/// Directly Convert a Manuscript to XML.
+/// Directly Convert a [`Vec<Block`] into an XML string representing a single page.
+/// No pagebreak may be present, but the name of the page has to be passed separately in
+/// `pagename`.
 ///
 /// # Errors
 /// Can only be [`DeStream`](ConversionError::DeStream), [`DeNorm`](ConversionError::DeNorm) and
@@ -139,7 +141,10 @@ pub fn page_from_xml(
     ))
 }
 
+#[cfg(test)]
 mod test {
+    use crate::page_from_xml;
+
     #[test]
     fn from_to_xml() {
         let xml = std::fs::File::open("examples/02_lines_consistent.xml").unwrap();
@@ -170,5 +175,12 @@ mod test {
             to_xml,
             r#"<div xml:lang="ger" type="page" n="page1"><div type="column" n="1"><div type="line" n="1"><p>Das ist content.</p></div></div></div>"#
         );
+    }
+
+    #[test]
+    fn legal_page() {
+        let xml = "<div type=\"page\" n=\"MAPM from verse 347\"><div type=\"column\" n=\"1\"><div type=\"line\" n=\"1\"><anchor xml:id=\"A_V_MT_Psalms-26-10\" type=\"Masoretic\"/><p>א\u{5b2}ש\u{5c1}\u{5b6}ר־ב\u{5bc}\u{5b4}יד\u{5b5}יה\u{5b6}\u{5a5}ם ז\u{5b4}מ\u{5bc}\u{5b8}\u{591}הו\u{5b4}\u{59d}ימ\u{5b4}ינ\u{5b8}\u{597}ם מ\u{5b8}\u{5a3}ל\u{5b0}א\u{5b8}ה ש\u{5c1}\u{5bc}\u{5b9}\u{5bd}ח\u{5b7}ד׃</p><anchor xml:id=\"A_V_MT_Psalms-26-11\" type=\"Masoretic\"/><p>ו\u{5b7}\u{5ad}א\u{5b2}נ\u{5b4}י ב\u{5bc}\u{5b0}ת\u{5bb}מ\u{5bc}\u{5b4}\u{5a5}י א\u{5b5}ל\u{5b5}\u{597}ך\u{5b0}פ\u{5bc}\u{5b0}ד\u{5b5}\u{5a3}נ\u{5b4}י ו\u{5b0}ח\u{5c7}נ\u{5bc}\u{5b5}\u{5bd}נ\u{5b4}י׃</p><anchor xml:id=\"A_V_MT_Psalms-26-12\" type=\"Masoretic\"/><p>ר\u{5b7}\u{5ad}ג\u{5b0}ל\u{5b4}י ע\u{5b8}מ\u{5b0}ד\u{5b8}\u{5a3}ה ב\u{5b0}מ\u{5b4}יש\u{5c1}\u{591}ו\u{5b9}רב\u{5bc}\u{5b0}\u{59d}מ\u{5b7}ק\u{5b0}ה\u{5b5}ל\u{5b4}\u{597}ים א\u{5b2}ב\u{5b8}ר\u{5b5}\u{5a5}ך\u{5b0} י\u{5b0}ה\u{5b9}ו\u{5b8}\u{5bd}ה׃</p></div></div></div>";
+        let res = page_from_xml(xml.as_bytes(), "hbo");
+        assert!(dbg!(res).is_ok());
     }
 }

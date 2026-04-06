@@ -408,7 +408,7 @@ pub struct TDOCWrapper {
     #[serde(rename = "@xml:lang", skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     /// The actual content we care about
-    #[serde(rename = "$value")]
+    #[serde(rename = "$value", default = "TextDamageOrChoice::default")]
     pub value: TextDamageOrChoice,
 }
 impl TDOCWrapper {
@@ -428,6 +428,8 @@ impl TDOCWrapper {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum TextDamageOrChoice {
     /// Raw text - this is text clearly visible in the manuscript
+    ///
+    /// NOTE: the empty string will be read as None here
     #[serde(rename = "$text")]
     Text(String),
     /// Damaged text
@@ -436,6 +438,11 @@ pub enum TextDamageOrChoice {
     /// An expanded abbreviation
     #[serde(rename = "choice")]
     Choice(Choice),
+}
+impl Default for TextDamageOrChoice {
+    fn default() -> Self {
+        Self::Text(String::default())
+    }
 }
 impl TextDamageOrChoice {
     #[must_use]
@@ -1648,7 +1655,7 @@ mod test {
                                         TDOCWrapper {
                                             lang: None,
                                             value: TextDamageOrChoice::Text(
-                                                "asdfa".to_string(),
+                                                "asdfa".to_string()
                                             ),
                                         },
                                     ),
@@ -1980,5 +1987,12 @@ mod test {
                 collection: Some("EVRII".to_string()),
             }
         );
+    }
+
+    #[test]
+    fn empty_text() {
+        let xml = "<p/>";
+        let res: Result<TDOCWrapper, _> = quick_xml::de::from_str(xml);
+        assert!(dbg!(res).is_ok());
     }
 }
