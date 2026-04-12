@@ -75,6 +75,44 @@ impl Block {
             Block::Space(_) => BlockType::Space,
         }
     }
+
+    /// The raw surface text content that is visible in this block.
+    ///
+    /// Some blocks do not have content:
+    /// - [`Block::Anchor`]
+    /// - [`Block::Break`]
+    /// - [`Block::Lacuna`]
+    /// - [`Block::Space`]
+    #[must_use]
+    pub fn content(&self) -> Option<&str> {
+        match self {
+            Block::Text(paragraph) => Some(&paragraph.content),
+            Block::Uncertain(uncertain) => Some(&uncertain.content),
+            Block::Correction(correction) => correction.versions.last().map(|v| v.content.as_str()),
+            Block::Abbreviation(abbreviation) => Some(&abbreviation.surface),
+            Block::Anchor(_) | Block::Break(_) | Block::Lacuna(_) | Block::Space(_) => None,
+        }
+    }
+
+    /// Return a Clone of this Block, with the content truncated to the given number of characters.
+    #[must_use = "with_truncated_content returns a new object and does not modify the input in place."]
+    pub fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        match self {
+            Block::Text(paragraph) => {
+                Block::Text(paragraph.with_truncated_content(max_content_length))
+            }
+            Block::Uncertain(uncertain) => {
+                Block::Uncertain(uncertain.with_truncated_content(max_content_length))
+            }
+            Block::Correction(correction) => {
+                Block::Correction(correction.with_truncated_content(max_content_length))
+            }
+            Block::Abbreviation(abbreviation) => {
+                Block::Abbreviation(abbreviation.with_truncated_content(max_content_length))
+            }
+            Block::Anchor(_) | Block::Break(_) | Block::Lacuna(_) | Block::Space(_) => self.clone(),
+        }
+    }
 }
 /// Ignores the actual data and returns the [`BlockType`] of this [`Block`].
 impl From<Block> for BlockType {
@@ -200,6 +238,14 @@ pub struct Paragraph {
     pub lang: String,
     pub content: String,
 }
+impl Paragraph {
+    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        Self {
+            lang: self.lang.clone(),
+            content: self.content.chars().take(max_content_length).collect(),
+        }
+    }
+}
 
 pub type Lacuna = normalized::Lacuna;
 pub type Anchor = normalized::Anchor;
@@ -212,6 +258,15 @@ pub struct Correction {
     pub versions: Vec<Version>,
 }
 impl Correction {
+    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        Self {
+            versions: self
+                .versions
+                .iter()
+                .map(|v| v.with_truncated_content(max_content_length))
+                .collect(),
+        }
+    }
     /// A correction has a language if it has at least one version
     ///
     /// This is the language which is held by the highest number of versions
@@ -244,6 +299,15 @@ pub struct Version {
     /// The actual text of this reading
     pub content: String,
 }
+impl Version {
+    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        Self {
+            lang: self.lang.clone(),
+            hand: self.hand.clone(),
+            content: self.content.chars().take(max_content_length).collect(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Uncertain {
@@ -255,6 +319,16 @@ pub struct Uncertain {
     pub agent: String,
     /// The reproduction of the damaged text
     pub content: String,
+}
+impl Uncertain {
+    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        Self {
+            lang: self.lang.clone(),
+            cert: self.cert.clone(),
+            agent: self.agent.clone(),
+            content: self.content.chars().take(max_content_length).collect(),
+        }
+    }
 }
 
 /// An expanded abbreviation.
@@ -273,6 +347,16 @@ pub struct Abbreviation {
     pub expansion_lang: String,
     /// The expanded form supplied by the transcriber
     pub expansion: String,
+}
+impl Abbreviation {
+    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+        Self {
+            surface_lang: self.surface_lang.clone(),
+            surface: self.surface.chars().take(max_content_length).collect(),
+            expansion_lang: self.expansion_lang.clone(),
+            expansion: self.expansion.clone(),
+        }
+    }
 }
 
 pub type Space = crate::normalized::Space;
