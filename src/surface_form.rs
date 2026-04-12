@@ -233,6 +233,12 @@ impl SurfaceBaseText {
         } else {
             content.to_string()
         };
+        if !self.raw_text.is_empty() && !equality_cleansed_paragraph.is_empty() {
+            println!("Adding a space and advancing current_total_char_length");
+            self.raw_text.push(' ');
+            self.current_total_char_length += 1;
+        }
+
         for (word_idx, word_position) in
             SplitWhitespaceIndices::new(&equality_cleansed_paragraph).enumerate()
         {
@@ -241,10 +247,6 @@ impl SurfaceBaseText {
                 block_position: block_idx,
                 position_in_block: word_idx,
             });
-        }
-        if !self.raw_text.is_empty() && !equality_cleansed_paragraph.is_empty() {
-            self.raw_text.push(' ');
-            self.current_total_char_length += 1;
         }
         self.raw_text.push_str(&equality_cleansed_paragraph);
         self.current_total_char_length += equality_cleansed_paragraph.chars().count();
@@ -277,7 +279,7 @@ impl SurfaceBaseText {
 mod test {
     use crate::{
         streamed::{Anchor, Block, Paragraph},
-        surface_form::{SurfaceBaseText, SurfaceIndex},
+        surface_form::{self, SurfaceBaseText, SurfaceIndex},
     };
 
     #[test]
@@ -418,12 +420,47 @@ mod test {
 ];
         let surface_form = SurfaceBaseText::from_blocks(&content);
         assert_eq!(
+            surface_form.indexmap().first().unwrap(),
+            &SurfaceIndex {
+                position_in_raw: 0,
+                block_position: 1,
+                position_in_block: 0,
+            }
+        );
+        assert_eq!(
             surface_form.indexmap.last().unwrap(),
             &SurfaceIndex {
-                position_in_raw: 1157,
+                position_in_raw: 1158,
                 block_position: 21,
                 position_in_block: 14,
             }
+        );
+    }
+
+    #[test]
+    fn two_blocks() {
+        let content = vec![
+            Block::Text(Paragraph {
+                lang: "en".to_string(),
+                content: "I am the content of the first block.".to_string(),
+            }),
+            Block::Text(Paragraph {
+                lang: "en".to_string(),
+                content: "And I contain the second block.".to_string(),
+            }),
+        ];
+        let surface_form = SurfaceBaseText::from_blocks(&content);
+        assert_eq!(
+            surface_form.raw_text(),
+            "I am the content of the first block. And I contain the second block."
+        );
+        assert_eq!(
+            surface_form
+                .indexmap
+                .into_iter()
+                .map(|sfi| sfi.position_in_raw)
+                .collect::<Vec<_>>(),
+            [0, 2, 5, 9, 17, 20, 24, 30, 37, 41, 43, 51, 55, 62]
         );
     }
 }
