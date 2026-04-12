@@ -95,21 +95,27 @@ impl Block {
     }
 
     /// Return a Clone of this Block, with the content truncated to the given number of characters.
+    ///
+    /// Characters outside equality_alphabet are taken, but not counted towards the max_content_length
     #[must_use = "with_truncated_content returns a new object and does not modify the input in place."]
-    pub fn with_truncated_content(&self, max_content_length: usize) -> Self {
+    pub fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
         match self {
             Block::Text(paragraph) => {
-                Block::Text(paragraph.with_truncated_content(max_content_length))
+                Block::Text(paragraph.with_truncated_content(max_content_length, equality_alphabet))
             }
-            Block::Uncertain(uncertain) => {
-                Block::Uncertain(uncertain.with_truncated_content(max_content_length))
-            }
-            Block::Correction(correction) => {
-                Block::Correction(correction.with_truncated_content(max_content_length))
-            }
-            Block::Abbreviation(abbreviation) => {
-                Block::Abbreviation(abbreviation.with_truncated_content(max_content_length))
-            }
+            Block::Uncertain(uncertain) => Block::Uncertain(
+                uncertain.with_truncated_content(max_content_length, equality_alphabet),
+            ),
+            Block::Correction(correction) => Block::Correction(
+                correction.with_truncated_content(max_content_length, equality_alphabet),
+            ),
+            Block::Abbreviation(abbreviation) => Block::Abbreviation(
+                abbreviation.with_truncated_content(max_content_length, equality_alphabet),
+            ),
             Block::Anchor(_) | Block::Break(_) | Block::Lacuna(_) | Block::Space(_) => self.clone(),
         }
     }
@@ -233,17 +239,57 @@ impl BreakType {
     }
 }
 
+/// Truncate `content` to contain `max_content_length` characters inside `equality_alphabet`, and
+/// everything else right up to but excluding the next character in `equality_alphabet` that would overstep that
+/// boundary.
+///
+fn truncated_to(
+    content: &str,
+    max_content_length: usize,
+    equality_alphabet: Option<&str>,
+) -> String {
+    if let Some(ea) = equality_alphabet {
+        let mut equality_relevant_taken = 0;
+        content
+            .chars()
+            .take_while(|c| {
+                let is_relevant = ea.contains(*c);
+                if is_relevant {
+                    equality_relevant_taken += 1;
+                    equality_relevant_taken <= max_content_length
+                } else {
+                    true
+                }
+            })
+            .collect()
+    } else {
+        content.chars().take(max_content_length).collect()
+    }
+}
+#[cfg(test)]
+#[test]
+fn truncate_to_test() {
+    let content = "before 1 2 between 3 after";
+    let equality_alphabet = "1234";
+    let truncated = truncated_to(content, 2, Some(equality_alphabet));
+    assert_eq!(truncated, "before 1 2 between ".to_string());
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Paragraph {
     pub lang: String,
     pub content: String,
 }
 impl Paragraph {
-    fn with_truncated_content(&self, max_content_length: usize) -> Self {
-        Self {
+    fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
+        return Self {
             lang: self.lang.clone(),
-            content: self.content.chars().take(max_content_length).collect(),
-        }
+            content: truncated_to(&self.content, max_content_length, equality_alphabet),
+        };
     }
 }
 
@@ -258,12 +304,16 @@ pub struct Correction {
     pub versions: Vec<Version>,
 }
 impl Correction {
-    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+    fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
         Self {
             versions: self
                 .versions
                 .iter()
-                .map(|v| v.with_truncated_content(max_content_length))
+                .map(|v| v.with_truncated_content(max_content_length, equality_alphabet))
                 .collect(),
         }
     }
@@ -300,11 +350,15 @@ pub struct Version {
     pub content: String,
 }
 impl Version {
-    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+    fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
         Self {
             lang: self.lang.clone(),
             hand: self.hand.clone(),
-            content: self.content.chars().take(max_content_length).collect(),
+            content: truncated_to(&self.content, max_content_length, equality_alphabet),
         }
     }
 }
@@ -321,12 +375,16 @@ pub struct Uncertain {
     pub content: String,
 }
 impl Uncertain {
-    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+    fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
         Self {
             lang: self.lang.clone(),
             cert: self.cert.clone(),
             agent: self.agent.clone(),
-            content: self.content.chars().take(max_content_length).collect(),
+            content: truncated_to(&self.content, max_content_length, equality_alphabet),
         }
     }
 }
@@ -349,10 +407,14 @@ pub struct Abbreviation {
     pub expansion: String,
 }
 impl Abbreviation {
-    fn with_truncated_content(&self, max_content_length: usize) -> Self {
+    fn with_truncated_content(
+        &self,
+        max_content_length: usize,
+        equality_alphabet: Option<&str>,
+    ) -> Self {
         Self {
             surface_lang: self.surface_lang.clone(),
-            surface: self.surface.chars().take(max_content_length).collect(),
+            surface: truncated_to(&self.surface, max_content_length, equality_alphabet),
             expansion_lang: self.expansion_lang.clone(),
             expansion: self.expansion.clone(),
         }

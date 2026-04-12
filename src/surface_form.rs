@@ -278,7 +278,7 @@ impl SurfaceBaseText {
 mod test {
     use crate::{
         streamed::{Anchor, Block, Paragraph},
-        surface_form::{self, SurfaceBaseText, SurfaceIndex},
+        surface_form::{SurfaceBaseText, SurfaceIndex},
     };
 
     #[test]
