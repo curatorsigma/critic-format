@@ -234,7 +234,6 @@ impl SurfaceBaseText {
             content.to_string()
         };
         if !self.raw_text.is_empty() && !equality_cleansed_paragraph.is_empty() {
-            println!("Adding a space and advancing current_total_char_length");
             self.raw_text.push(' ');
             self.current_total_char_length += 1;
         }
