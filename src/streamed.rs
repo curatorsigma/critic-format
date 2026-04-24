@@ -96,7 +96,7 @@ impl Block {
 
     /// Return a Clone of this Block, with the content truncated to the given number of characters.
     ///
-    /// Characters outside equality_alphabet are taken, but not counted towards the max_content_length
+    /// Characters outside `equality_alphabet` are taken, but not counted towards the `max_content_length`
     #[must_use = "with_truncated_content returns a new object and does not modify the input in place."]
     pub fn with_truncated_content(
         &self,
@@ -286,10 +286,10 @@ impl Paragraph {
         max_content_length: usize,
         equality_alphabet: Option<&str>,
     ) -> Self {
-        return Self {
+        Self {
             lang: self.lang.clone(),
             content: truncated_to(&self.content, max_content_length, equality_alphabet),
-        };
+        }
     }
 }
 
