@@ -239,10 +239,10 @@ impl BreakType {
     }
 }
 
-/// Truncate `content` to contain `max_content_length` characters inside `equality_alphabet`, and
-/// everything else right up to but excluding the next character in `equality_alphabet` that would overstep that
+/// Truncate `content` to contain `max_content_length` characters inside `equality_alphabet` or
+/// whitespaces, and
+/// everything else right up to but excluding the next character in `equality_alphabet` or whitespace that would overstep that
 /// boundary.
-///
 fn truncated_to(
     content: &str,
     max_content_length: usize,
@@ -253,7 +253,7 @@ fn truncated_to(
         content
             .chars()
             .take_while(|c| {
-                let is_relevant = ea.contains(*c);
+                let is_relevant = ea.contains(*c) || c.is_whitespace();
                 if is_relevant {
                     equality_relevant_taken += 1;
                     equality_relevant_taken <= max_content_length
@@ -271,7 +271,7 @@ fn truncated_to(
 fn truncate_to_test() {
     let content = "before 1 2 between 3 after";
     let equality_alphabet = "1234";
-    let truncated = truncated_to(content, 2, Some(equality_alphabet));
+    let truncated = truncated_to(content, 6, Some(equality_alphabet));
     assert_eq!(truncated, "before 1 2 between ".to_string());
 }
 

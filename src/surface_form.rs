@@ -456,10 +456,19 @@ mod test {
         assert_eq!(
             surface_form
                 .indexmap
-                .into_iter()
+                .iter()
                 .map(|sfi| sfi.position_in_raw)
                 .collect::<Vec<_>>(),
             [0, 2, 5, 9, 17, 20, 24, 30, 37, 41, 43, 51, 55, 62]
+        );
+        // position in block is based on word-indices
+        assert_eq!(
+            surface_form
+                .indexmap
+                .iter()
+                .map(|sfi| sfi.position_in_block)
+                .collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5]
         );
     }
 }
